@@ -3,6 +3,8 @@
 # Utility script for saving and restore the modification times,
 # owners and mode for all files in a tree.
 
+from win32_setctime import setctime
+
 import argparse
 import json
 import os
@@ -37,6 +39,7 @@ def apply_file_attrs(attrs):
         if os.path.lexists(path):
             atime = attr["atime"]
             mtime = attr["mtime"]
+            ctime = attr['ctime']
             uid = attr["uid"]
             gid = attr["gid"]
             mode = attr["mode"]
@@ -58,6 +61,7 @@ def apply_file_attrs(attrs):
             if mtime_changed:
                 print("Updating mtime for %s" % path, file=sys.stderr)
                 os.utime(path, (atime, mtime))
+                setctime(path, ctime)
         else:
             print("Skipping non-existent file %s" % path, file=sys.stderr)
 

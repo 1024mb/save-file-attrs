@@ -47,6 +47,7 @@ def apply_file_attrs(attrs):
             current_file_info = os.lstat(path)
             mode_changed = current_file_info.st_mode != mode
             mtime_changed = current_file_info.st_mtime != mtime
+            ctime_changed = current_file_info.st_ctime != ctime
             uid_changed = current_file_info.st_uid != uid
             gid_changed = current_file_info.st_gid != gid
 
@@ -58,8 +59,8 @@ def apply_file_attrs(attrs):
                 print("Updating permissions for %s" % path, file=sys.stderr)
                 os.chmod(path, mode)
 
-            if mtime_changed:
-                print("Updating mtime for %s" % path, file=sys.stderr)
+            if mtime_changed or ctime_changed:
+                print("Updating dates for %s" % path, file=sys.stderr)
                 os.utime(path, (atime, mtime))
                 setctime(path, ctime)
         else:
@@ -67,7 +68,6 @@ def apply_file_attrs(attrs):
 
 
 def main():
-    ATTR_FILE_NAME = ".saved-file-attrs"
 
     parser = argparse.ArgumentParser(
         "Save and restore file attributes in a directory tree"
@@ -82,10 +82,19 @@ def main():
     args = parser.parse_args()
 
     if args.mode == "save":
+        ATTR_FILE_NAME = input("Enter a filename or press enter to use the default:\n")
+        if ATTR_FILE_NAME == "":
+            ATTR_FILE_NAME = ".saved-file-attrs"
+        if not os.path.dirname(ATTR_FILE_NAME) == "":
+            if not os.path.exists(os.path.dirname(ATTR_FILE_NAME)):
+                os.mkdir(os.path.dirname(ATTR_FILE_NAME))
         attr_file = open(ATTR_FILE_NAME, "w")
         attrs = collect_file_attrs(".")
         json.dump(attrs, attr_file, indent=2)
     elif args.mode == "restore":
+        ATTR_FILE_NAME = input("Enter a filename or press enter to use the default:\n")
+        if ATTR_FILE_NAME == "":
+            ATTR_FILE_NAME = ".saved-file-attrs"
         if not os.path.exists(ATTR_FILE_NAME):
             print(
                 "Saved attributes file '%s' not found" % ATTR_FILE_NAME, file=sys.stderr

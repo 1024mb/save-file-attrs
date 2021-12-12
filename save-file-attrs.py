@@ -15,16 +15,19 @@ def collect_file_attrs(path):
     for (dirpath, dirnames, filenames) in dirs:
         files = dirnames + filenames
         for file in files:
-            path = os.path.join(dirpath, file)
-            file_info = os.lstat(path)
-            file_attrs[path] = {
-                "mode": file_info.st_mode,
-                "ctime": file_info.st_ctime,
-                "mtime": file_info.st_mtime,
-                "atime": file_info.st_atime,
-                "uid": file_info.st_uid,
-                "gid": file_info.st_gid,
-            }
+            try:
+                path = os.path.join(dirpath, file)
+                file_info = os.lstat(path)
+                file_attrs[path] = {
+                    "mode": file_info.st_mode,
+                    "ctime": file_info.st_ctime,
+                    "mtime": file_info.st_mtime,
+                    "atime": file_info.st_atime,
+                    "uid": file_info.st_uid,
+                    "gid": file_info.st_gid,
+                }
+            except:
+                pass
     return file_attrs
 
 

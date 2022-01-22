@@ -129,6 +129,7 @@ def main():
         attr_file = open(ATTR_FILE_NAME, "w")
         attrs = collect_file_attrs(".")
         json.dump(attrs, attr_file, indent=2)
+
     elif args.mode == "restore":
         if args.i == None:
             ATTR_FILE_NAME = ".saved-file-attrs"
@@ -137,6 +138,8 @@ def main():
             if not os.path.dirname(ATTR_FILE_NAME) == "":
                 if not os.path.exists(os.path.dirname(ATTR_FILE_NAME)):
                     os.makedirs(os.path.dirname(ATTR_FILE_NAME))
+            if os.path.basename(ATTR_FILE_NAME) == "":
+                ATTR_FILE_NAME = os.path.join(ATTR_FILE_NAME, ".saved-file-attrs")
         if not os.path.exists(ATTR_FILE_NAME):
             print(
                 "Saved attributes file '%s' not found" % ATTR_FILE_NAME, file=sys.stderr

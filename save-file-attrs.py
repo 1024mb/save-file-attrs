@@ -38,6 +38,7 @@ def collect_file_attrs(path):
 
 
 def apply_file_attrs(attrs):
+    proc = 0
     for path in sorted(attrs):
         attr = attrs[path]
         if os.path.lexists(path):
@@ -58,18 +59,16 @@ def apply_file_attrs(attrs):
                     uid_changed = current_file_info.st_uid != uid
                     gid_changed = current_file_info.st_gid != gid
 
-                    if uid_changed or gid_changed:
-                        print("Updating UID, GID for %s" % path, file=sys.stderr)
-                        os.chown(path, uid, gid)
-
                     if mode_changed:
                         print("Updating permissions for %s" % path, file=sys.stderr)
                         os.chmod(path, mode)
+                        proc = 1
 
                     if mtime_changed or ctime_changed or atime_changed:
                         print("Updating dates for %s" % path, file=sys.stderr)
                         os.utime(path, (atime, mtime))
                         setctime(path, ctime)
+                        proc = 1
                 else:
                     print("Skipping symbolic link %s" % path, file=sys.stderr)
             else:
@@ -90,16 +89,21 @@ def apply_file_attrs(attrs):
                 if uid_changed or gid_changed:
                     print("Updating UID, GID for %s" % path, file=sys.stderr)
                     os.chown(path, uid, gid, follow_symlinks=False)
+                    proc = 1
 
                 if mode_changed:
                     print("Updating permissions for %s" % path, file=sys.stderr)
                     os.chmod(path, mode, follow_symlinks=False)
+                    proc = 1
 
                 if mtime_changed or atime_changed:
                     print("Updating mtime or atime for %s" % path, file=sys.stderr)
                     os.utime(path, (atime, mtime), follow_symlinks=False)
+                    proc = 1
         else:
             print("Skipping non-existent file %s" % path, file=sys.stderr)
+    if proc == 0:
+                print("Nothing to change")
 
 
 def main():
@@ -134,6 +138,7 @@ def main():
         attr_file = open(ATTR_FILE_NAME, "w")
         attrs = collect_file_attrs(".")
         json.dump(attrs, attr_file, indent=2)
+        print("Attributes saved to "+ATTR_FILE_NAME)
 
     elif args.mode == "restore":
         if args.i == None:

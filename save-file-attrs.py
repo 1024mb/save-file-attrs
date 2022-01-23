@@ -115,44 +115,39 @@ def main():
     save_parser = subparsers.add_parser(
         "save", help="Save the attributes of files in the directory tree"
     )
-    save_parser.add_argument("--o", "-o", help="Set output file (Optional)", metavar="%OUTPUT%")
+    save_parser.add_argument("--o", "-o", help="Set output file (Optional)", metavar="%OUTPUT%", default=".saved-file-attrs")
     save_parser.add_argument("--p", "-p", help="Set path to store attributes from (Optional)", metavar="%PATH%", default=".")
     restore_parser = subparsers.add_parser(
         "restore", help="Restore saved file attributes"
     )
-    restore_parser.add_argument("--i", "-i", help="Set input file (Optional)", metavar="%INPUT%")
+    restore_parser.add_argument("--i", "-i", help="Set input file (Optional)", metavar="%INPUT%", default=".saved-file-attrs")
     args = parser.parse_args()
 
     if args.mode == "save":
         if args.p.endswith('"'):
             args.p = args.p[:-1]
-        if args.o == None:
-            ATTR_FILE_NAME = ".saved-file-attrs"
-        else:
-            ATTR_FILE_NAME = args.o
-            if ATTR_FILE_NAME.endswith('"'):
-                print("ERROR: It seems you are using CMD or Powershell on Windows, if so you should add another\nbackslash to the end of the path or use slashes instead, otherwise it wont work.\n\nExiting now...")
+            if not os.path.exists(args.p):
+                print("Specified path doesn't exist, aborting...")
                 sys.exit(1)
-            if not os.path.dirname(ATTR_FILE_NAME) == "":
-                if not os.path.exists(os.path.dirname(ATTR_FILE_NAME)):
-                    os.makedirs(os.path.dirname(ATTR_FILE_NAME))
-            if os.path.basename(ATTR_FILE_NAME) == "":
-                ATTR_FILE_NAME = os.path.join(ATTR_FILE_NAME, ".saved-file-attrs")
+        ATTR_FILE_NAME = args.o
+        if ATTR_FILE_NAME.endswith('"'):
+            ATTR_FILE_NAME = ATTR_FILE_NAME[:-1] + "\\" # Windows escapes the quote if the command ends in \" so this fixes that
+        if not os.path.dirname(ATTR_FILE_NAME) == "":
+            if not os.path.exists(os.path.dirname(ATTR_FILE_NAME)):
+                os.makedirs(os.path.dirname(ATTR_FILE_NAME))
+        if os.path.basename(ATTR_FILE_NAME) == "":
+            ATTR_FILE_NAME = os.path.join(ATTR_FILE_NAME, ".saved-file-attrs")
         attr_file = open(ATTR_FILE_NAME, "w")
         attrs = collect_file_attrs(args.p)
         json.dump(attrs, attr_file, indent=2)
         print("Attributes saved to "+ATTR_FILE_NAME)
 
     elif args.mode == "restore":
-        if args.i == None:
-            ATTR_FILE_NAME = ".saved-file-attrs"
-        else:
-            ATTR_FILE_NAME = args.i
-            if not os.path.dirname(ATTR_FILE_NAME) == "":
-                if not os.path.exists(os.path.dirname(ATTR_FILE_NAME)):
-                    os.makedirs(os.path.dirname(ATTR_FILE_NAME))
-            if os.path.basename(ATTR_FILE_NAME) == "":
-                ATTR_FILE_NAME = os.path.join(ATTR_FILE_NAME, ".saved-file-attrs")
+        ATTR_FILE_NAME = args.i
+        if ATTR_FILE_NAME.endswith('"'):
+            ATTR_FILE_NAME = ATTR_FILE_NAME[:-1] + "\\" # Windows escapes the quote if the command ends in \" so this fixes that
+        if os.path.basename(ATTR_FILE_NAME) == "":
+            ATTR_FILE_NAME = os.path.join(ATTR_FILE_NAME, ".saved-file-attrs")
         if not os.path.exists(ATTR_FILE_NAME):
             print(
                 "Saved attributes file '%s' not found" % ATTR_FILE_NAME, file=sys.stderr
@@ -164,7 +159,7 @@ def main():
 
     elif args.mode == None:
         print("You have to use either save or restore.\nSee the help.")
-        sys.exit(1)
+        sys.exit(3)
 
 
 if __name__ == "__main__":

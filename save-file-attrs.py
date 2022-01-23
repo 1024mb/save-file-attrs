@@ -116,6 +116,7 @@ def main():
         "save", help="Save the attributes of files in the directory tree"
     )
     save_parser.add_argument("--o", "-o", help="Set output file (Optional)", metavar="%OUTPUT%")
+    save_parser.add_argument("--p", "-p", help="Set path to store attributes from (Optional)", metavar="%PATH%", default=".")
     restore_parser = subparsers.add_parser(
         "restore", help="Restore saved file attributes"
     )
@@ -123,6 +124,8 @@ def main():
     args = parser.parse_args()
 
     if args.mode == "save":
+        if args.p.endswith('"'):
+            args.p = args.p[:-1]
         if args.o == None:
             ATTR_FILE_NAME = ".saved-file-attrs"
         else:
@@ -136,7 +139,7 @@ def main():
             if os.path.basename(ATTR_FILE_NAME) == "":
                 ATTR_FILE_NAME = os.path.join(ATTR_FILE_NAME, ".saved-file-attrs")
         attr_file = open(ATTR_FILE_NAME, "w")
-        attrs = collect_file_attrs(".")
+        attrs = collect_file_attrs(args.p)
         json.dump(attrs, attr_file, indent=2)
         print("Attributes saved to "+ATTR_FILE_NAME)
 

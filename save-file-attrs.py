@@ -121,6 +121,9 @@ def main():
             ATTR_FILE_NAME = ".saved-file-attrs"
         else:
             ATTR_FILE_NAME = args.o
+            if ATTR_FILE_NAME.endswith('"'):
+                print("ERROR: It seems you are using CMD or Powershell on Windows, if so you should add another\nbackslash to the end of the path or use slashes instead, otherwise it wont work.\n\nExiting now...")
+                sys.exit(1)
             if not os.path.dirname(ATTR_FILE_NAME) == "":
                 if not os.path.exists(os.path.dirname(ATTR_FILE_NAME)):
                     os.makedirs(os.path.dirname(ATTR_FILE_NAME))
@@ -148,6 +151,10 @@ def main():
         attr_file = open(ATTR_FILE_NAME, "r")
         attrs = json.load(attr_file)
         apply_file_attrs(attrs)
+
+    elif args.mode == None:
+        print("You have to use either save or restore.\nSee the help.")
+        sys.exit(1)
 
 
 if __name__ == "__main__":

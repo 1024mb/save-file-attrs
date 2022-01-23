@@ -52,6 +52,7 @@ def apply_file_attrs(attrs):
 
                     current_file_info = os.lstat(path)
                     mode_changed = current_file_info.st_mode != mode
+                    atime_changed = current_file_info.st_atime != atime
                     mtime_changed = current_file_info.st_mtime != mtime
                     ctime_changed = current_file_info.st_ctime != ctime
                     uid_changed = current_file_info.st_uid != uid
@@ -65,7 +66,7 @@ def apply_file_attrs(attrs):
                         print("Updating permissions for %s" % path, file=sys.stderr)
                         os.chmod(path, mode)
 
-                    if mtime_changed or ctime_changed:
+                    if mtime_changed or ctime_changed or atime_changed:
                         print("Updating dates for %s" % path, file=sys.stderr)
                         os.utime(path, (atime, mtime))
                         setctime(path, ctime)
@@ -81,6 +82,7 @@ def apply_file_attrs(attrs):
 
                 current_file_info = os.lstat(path)
                 mode_changed = current_file_info.st_mode != mode
+                atime_changed = current_file_info.st_atime != atime
                 mtime_changed = current_file_info.st_mtime != mtime
                 uid_changed = current_file_info.st_uid != uid
                 gid_changed = current_file_info.st_gid != gid
@@ -93,8 +95,8 @@ def apply_file_attrs(attrs):
                     print("Updating permissions for %s" % path, file=sys.stderr)
                     os.chmod(path, mode, follow_symlinks=False)
 
-                if mtime_changed:
-                    print("Updating mtime for %s" % path, file=sys.stderr)
+                if mtime_changed or atime_changed:
+                    print("Updating mtime or atime for %s" % path, file=sys.stderr)
                     os.utime(path, (atime, mtime), follow_symlinks=False)
         else:
             print("Skipping non-existent file %s" % path, file=sys.stderr)

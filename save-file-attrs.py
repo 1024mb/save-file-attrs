@@ -36,17 +36,52 @@ def collect_file_attrs(path):
                 pass
     return file_attrs
 
-
 def apply_file_attrs(attrs):
     proc = 0
     for path in sorted(attrs):
         attr = attrs[path]
-        if os.path.lexists(path):
-            if platform.system() == "Windows":
-                if os.path.islink(path) == False:
+        if platform.system() == "Windows":
+            try:
+                if os.path.lexists(path):
+                    if os.path.islink(path) == False:
+                        atime = attr["atime"]
+                        mtime = attr["mtime"]
+                        ctime = attr["ctime"]
+                        uid = attr["uid"]
+                        gid = attr["gid"]
+                        mode = attr["mode"]
+
+                        current_file_info = os.lstat(path)
+                        mode_changed = current_file_info.st_mode != mode
+                        atime_changed = current_file_info.st_atime != atime
+                        mtime_changed = current_file_info.st_mtime != mtime
+                        ctime_changed = current_file_info.st_ctime != ctime
+                        uid_changed = current_file_info.st_uid != uid
+                        gid_changed = current_file_info.st_gid != gid
+
+                        if mode_changed:
+                            print("Updating permissions for %s" % path, file=sys.stderr)
+                            os.chmod(path, mode)
+                            proc = 1
+
+                        if mtime_changed or ctime_changed or atime_changed:
+                            print("Updating dates for %s" % path, file=sys.stderr)
+                            os.utime(path, (atime, mtime))
+                            setctime(path, ctime)
+                            proc = 1
+                    else:
+                        print("Skipping symbolic link %s" % path, file=sys.stderr) # Can't make utime not follow symbolic links in WIndows so we skip them or else the attributes of the resolved paths will be changed.
+                else:
+                    print("Skipping non-existent file %s" % path, file=sys.stderr)
+            except OSError as Err:
+                print(Err)
+                pass
+        elif os.utime in os.supports_follow_symlinks == True:
+            try:
+                if os.path.lexists(path):
                     atime = attr["atime"]
                     mtime = attr["mtime"]
-                    ctime = attr['ctime']
+                    ctime = attr["ctime"]
                     uid = attr["uid"]
                     gid = attr["gid"]
                     mode = attr["mode"]
@@ -55,56 +90,67 @@ def apply_file_attrs(attrs):
                     mode_changed = current_file_info.st_mode != mode
                     atime_changed = current_file_info.st_atime != atime
                     mtime_changed = current_file_info.st_mtime != mtime
-                    ctime_changed = current_file_info.st_ctime != ctime
                     uid_changed = current_file_info.st_uid != uid
                     gid_changed = current_file_info.st_gid != gid
+
+                    if uid_changed or gid_changed:
+                        print("Updating UID, GID for %s" % path, file=sys.stderr)
+                        os.chown(path, uid, gid, follow_symlinks=False)
+                        proc = 1
+
+                    if mode_changed:
+                        print("Updating permissions for %s" % path, file=sys.stderr)
+                        os.chmod(path, mode, follow_symlinks=False)
+                        proc = 1
+
+                    if mtime_changed or atime_changed:
+                        print("Updating mtime or atime for %s" % path, file=sys.stderr)
+                        os.utime(path, (atime, mtime), follow_symlinks=False)
+                        proc = 1
+                else:
+                    print("Skipping non-existent file %s" % path, file=sys.stderr)
+            except OSError as Err:
+                print(Err)
+                pass
+        else:
+            try:
+                if os.path.lexists(path):
+                    atime = attr["atime"]
+                    mtime = attr["mtime"]
+                    ctime = attr["ctime"]
+                    uid = attr["uid"]
+                    gid = attr["gid"]
+                    mode = attr["mode"]
+
+                    current_file_info = os.lstat(path)
+                    mode_changed = current_file_info.st_mode != mode
+                    atime_changed = current_file_info.st_atime != atime
+                    mtime_changed = current_file_info.st_mtime != mtime
+                    uid_changed = current_file_info.st_uid != uid
+                    gid_changed = current_file_info.st_gid != gid
+
+                    if uid_changed or gid_changed:
+                        print("Updating UID, GID for %s" % path, file=sys.stderr)
+                        os.chown(path, uid, gid)
+                        proc = 1
 
                     if mode_changed:
                         print("Updating permissions for %s" % path, file=sys.stderr)
                         os.chmod(path, mode)
                         proc = 1
 
-                    if mtime_changed or ctime_changed or atime_changed:
-                        print("Updating dates for %s" % path, file=sys.stderr)
+                    if mtime_changed or atime_changed:
+                        print("Updating mtime or atime for %s" % path, file=sys.stderr)
                         os.utime(path, (atime, mtime))
-                        setctime(path, ctime)
                         proc = 1
                 else:
-                    print("Skipping symbolic link %s" % path, file=sys.stderr)
-            else:
-                atime = attr["atime"]
-                mtime = attr["mtime"]
-                ctime = attr['ctime']
-                uid = attr["uid"]
-                gid = attr["gid"]
-                mode = attr["mode"]
-
-                current_file_info = os.lstat(path)
-                mode_changed = current_file_info.st_mode != mode
-                atime_changed = current_file_info.st_atime != atime
-                mtime_changed = current_file_info.st_mtime != mtime
-                uid_changed = current_file_info.st_uid != uid
-                gid_changed = current_file_info.st_gid != gid
-
-                if uid_changed or gid_changed:
-                    print("Updating UID, GID for %s" % path, file=sys.stderr)
-                    os.chown(path, uid, gid, follow_symlinks=False)
-                    proc = 1
-
-                if mode_changed:
-                    print("Updating permissions for %s" % path, file=sys.stderr)
-                    os.chmod(path, mode, follow_symlinks=False)
-                    proc = 1
-
-                if mtime_changed or atime_changed:
-                    print("Updating mtime or atime for %s" % path, file=sys.stderr)
-                    os.utime(path, (atime, mtime), follow_symlinks=False)
-                    proc = 1
-        else:
-            print("Skipping non-existent file %s" % path, file=sys.stderr)
+                    print("Skipping non-existent file %s" % path, file=sys.stderr)
+            except OSError as Err:
+                print(Err)
+                pass
     if proc == 0:
-                print("Nothing to change")
-
+                print("Nothing to change.")
+                sys.exit(0)
 
 def main():
 
@@ -127,7 +173,7 @@ def main():
         if args.p.endswith('"'):
             args.p = args.p[:-1]
             if not os.path.exists(args.p):
-                print("Specified path doesn't exist, aborting...")
+                print("ERROR: Specified path doesn't exist, aborting...")
                 sys.exit(1)
         ATTR_FILE_NAME = args.o
         if ATTR_FILE_NAME.endswith('"'):
@@ -137,10 +183,17 @@ def main():
                 os.makedirs(os.path.dirname(ATTR_FILE_NAME))
         if os.path.basename(ATTR_FILE_NAME) == "":
             ATTR_FILE_NAME = os.path.join(ATTR_FILE_NAME, ".saved-file-attrs")
-        attr_file = open(ATTR_FILE_NAME, "w")
-        attrs = collect_file_attrs(args.p)
-        json.dump(attrs, attr_file, indent=2)
-        print("Attributes saved to "+ATTR_FILE_NAME)
+        try:
+            attr_file = open(ATTR_FILE_NAME, "w")
+            attrs = collect_file_attrs(args.p)
+            json.dump(attrs, attr_file, indent=2)
+            print("Attributes saved to "+ATTR_FILE_NAME)
+        except KeyboardInterrupt:
+                print("Shutdown requested... exiting")
+                sys.exit(1)
+        except OSError as ERR_W:
+            print("ERROR: There was an error writting to the attribute file.\n\n"+ERR_W+"\n")
+            sys.exit(1)
 
     elif args.mode == "restore":
         ATTR_FILE_NAME = args.i
@@ -153,9 +206,20 @@ def main():
                 "Saved attributes file '%s' not found" % ATTR_FILE_NAME, file=sys.stderr
             )
             sys.exit(1)
-        attr_file = open(ATTR_FILE_NAME, "r")
-        attrs = json.load(attr_file)
-        apply_file_attrs(attrs)
+        ATTR_FILE_SIZE = os.path.getsize(ATTR_FILE_NAME)
+        if ATTR_FILE_SIZE == 0:
+            print("ERROR: The attibute file is empty!")
+            sys.exit(1)
+        try:
+            attr_file = open(ATTR_FILE_NAME, "r")
+            attrs = json.load(attr_file)
+            apply_file_attrs(attrs)
+        except KeyboardInterrupt:
+                print("Shutdown requested... exiting")
+                sys.exit(1)
+        except OSError as ERR_R:
+            print("ERROR: There was an error reading the attribute file, no date has been changed.\n\n"+ERR_R+"\n")
+            sys.exit(1)
 
     elif args.mode == None:
         print("You have to use either save or restore.\nSee the help.")

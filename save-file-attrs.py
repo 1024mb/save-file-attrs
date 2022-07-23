@@ -154,6 +154,87 @@ def apply_file_attrs(attrs):
                 print("Nothing to change.")
                 sys.exit(0)
 
+def save_attrs(pathtosave, output, relative):
+    if pathtosave.endswith('"'):
+        pathtosave = pathtosave[:-1] + "\\" # Windows escapes the quote if the command ends in \" so this fixes that, or at least it does if this argument is the last one, otherwise the output argument will eat all the next args 
+    if pathtosave.endswith(':'):
+        pathtosave = pathtosave + "\\"
+    if not os.path.exists(pathtosave):
+            print("\nERROR: The specified path:\n\n%s\n\nDoesn't exist, aborting..." % pathtosave)
+            sys.exit(1)
+    
+    ATTR_FILE_NAME = output
+    if ATTR_FILE_NAME.endswith('"'):
+        ATTR_FILE_NAME = ATTR_FILE_NAME[:-1] + "\\" # Windows escapes the quote if the command ends in \" so this fixes that, or at least it does if this argument is the last one, otherwise the output argument will eat all the next args
+
+    if ATTR_FILE_NAME.endswith(':'):
+        ATTR_FILE_NAME = ATTR_FILE_NAME + "\\"
+
+    if not os.path.dirname(ATTR_FILE_NAME) == "":  # if the root directory of ATTR_FILE_NAME is not an empty string
+        if not os.path.exists(os.path.dirname(ATTR_FILE_NAME)): # if the path of the root directory of ATTR_FILE_NAME doesn't exist
+            os.makedirs(os.path.dirname(ATTR_FILE_NAME)) # create the path
+            
+    if os.path.basename(ATTR_FILE_NAME) == "":
+        ATTR_FILE_NAME = os.path.join(ATTR_FILE_NAME, ".saved-file-attrs")
+    
+    reqstate = [relative == True,
+                pathtosave != ".",
+                os.path.dirname(ATTR_FILE_NAME) == ""
+                ]
+                
+    if (reqstate[0] & reqstate[1]):
+        origdir = os.getcwd()
+    if all(reqstate):
+        ATTR_FILE_NAME = os.path.join(os.getcwd(), ATTR_FILE_NAME)
+    if (reqstate[0] & reqstate[1]):
+        os.chdir(pathtosave)
+        pathtosave = "."
+    
+    try:
+        attr_file = open(ATTR_FILE_NAME, "w")
+        attrs = collect_file_attrs(pathtosave)
+        json.dump(attrs, attr_file, indent=2)
+        print("Attributes saved to "+ATTR_FILE_NAME)
+    except KeyboardInterrupt:
+        if not origdir == None:
+            os.chdir(origdir)
+        print("Shutdown requested... exiting")
+        sys.exit(1)
+    except OSError as ERR_W:
+        if not origdir == None:
+            os.chdir(origdir)
+        print("ERROR: There was an error writting to the attribute file.\n\n", ERR_W, "\n")
+        sys.exit(1)
+    
+    if not origdir == None:
+        os.chdir(origdir)
+
+def restore_attrs(inputfile):
+    ATTR_FILE_NAME = inputfile
+    if ATTR_FILE_NAME.endswith('"'):
+        ATTR_FILE_NAME = ATTR_FILE_NAME[:-1] + "\\" # Windows escapes the quote if the command ends in \" so this fixes that
+    if os.path.basename(ATTR_FILE_NAME) == "":
+        ATTR_FILE_NAME = os.path.join(ATTR_FILE_NAME, ".saved-file-attrs")
+    if not os.path.exists(ATTR_FILE_NAME):
+        print(
+            "Saved attributes file '%s' not found" % ATTR_FILE_NAME, file=sys.stderr
+        )
+        sys.exit(1)
+    ATTR_FILE_SIZE = os.path.getsize(ATTR_FILE_NAME)
+    if ATTR_FILE_SIZE == 0:
+        print("ERROR: The attibute file is empty!")
+        sys.exit(1)
+    try:
+        attr_file = open(ATTR_FILE_NAME, "r")
+        attrs = json.load(attr_file)
+        apply_file_attrs(attrs)
+    except KeyboardInterrupt:
+            print("Shutdown requested... exiting")
+            sys.exit(1)
+    except OSError as ERR_R:
+        print("ERROR: There was an error reading the attribute file, no date has been changed.\n\n", ERR_R, "\n")
+        sys.exit(1)
+
 def main():
 
     parser = argparse.ArgumentParser(
@@ -163,97 +244,19 @@ def main():
     save_parser = subparsers.add_parser(
         "save", help="Save the attributes of files in the directory tree"
     )
-    save_parser.add_argument("--o", "-o", help="Set output file (Optional)", metavar="%OUTPUT%", default=".saved-file-attrs")
-    save_parser.add_argument("--p", "-p", help="Set path to store attributes from (Optional)", metavar="%PATH%", default=".")
-    save_parser.add_argument("--r", "-r", help="Stores paths as relatives instead of full", action="store_true")
+    save_parser.add_argument("--o", "-o", help="Set output file (Optional, default is .saved-file-attrs)", metavar="%OUTPUT%", default=".saved-file-attrs")
+    save_parser.add_argument("--p", "-p", help="Set path to store attributes from (Optional, default is current path)", metavar="%PATH%", default=".")
+    save_parser.add_argument("--r", "-r", help="Store paths as relative instead of full (Optional)", action="store_true")
     restore_parser = subparsers.add_parser(
         "restore", help="Restore saved file attributes"
     )
-    restore_parser.add_argument("--i", "-i", help="Set input file (Optional)", metavar="%INPUT%", default=".saved-file-attrs")
+    restore_parser.add_argument("--i", "-i", help="Set input file (Optional, default is .saved-file-attrs)", metavar="%INPUT%", default=".saved-file-attrs")
     args = parser.parse_args()
 
     if args.mode == "save":
-        if args.p.endswith('"'):
-            args.p = args.p[:-1] + "\\" # Windows escapes the quote if the command ends in \" so this fixes that, or at least it does if this argument is the last one, otherwise the output argument will eat all the next args 
-        if args.p.endswith(':'):
-            args.p = args.p + "\\"
-        if not os.path.exists(args.p):
-                print("\nERROR: The specified path:\n\n%s\n\nDoesn't exist, aborting..." % args.p)
-                sys.exit(1)
-        
-        ATTR_FILE_NAME = args.o
-        if ATTR_FILE_NAME.endswith('"'):
-            ATTR_FILE_NAME = ATTR_FILE_NAME[:-1] + "\\" # Windows escapes the quote if the command ends in \" so this fixes that, or at least it does if this argument is the last one, otherwise the output argument will eat all the next args
-
-        if ATTR_FILE_NAME.endswith(':'):
-            ATTR_FILE_NAME = ATTR_FILE_NAME + "\\"
-
-        if not os.path.dirname(ATTR_FILE_NAME) == "":  # if the root directory of ATTR_FILE_NAME is not an empty string
-            if not os.path.exists(os.path.dirname(ATTR_FILE_NAME)): # if the path of the root directory of ATTR_FILE_NAME doesn't exist
-                os.makedirs(os.path.dirname(ATTR_FILE_NAME)) # create the path
-                
-        if os.path.basename(ATTR_FILE_NAME) == "":
-            ATTR_FILE_NAME = os.path.join(ATTR_FILE_NAME, ".saved-file-attrs")
-        
-        reqstate = [args.r == True,
-                    args.p != ".",
-                    os.path.dirname(ATTR_FILE_NAME) == ""
-                    ]
-                    
-        if (reqstate[0] & reqstate[1]):
-            origdir = os.getcwd()
-        if all(reqstate):
-            ATTR_FILE_NAME = os.path.join(os.getcwd(), ATTR_FILE_NAME)
-        if (reqstate[0] & reqstate[1]):
-            os.chdir(args.p)
-            args.p = "."
-        
-        try:
-            attr_file = open(ATTR_FILE_NAME, "w")
-            attrs = collect_file_attrs(args.p)
-            json.dump(attrs, attr_file, indent=2)
-            print("Attributes saved to "+ATTR_FILE_NAME)
-        except KeyboardInterrupt:
-            if not origdir == None:
-                os.chdir(origdir)
-            print("Shutdown requested... exiting")
-            sys.exit(1)
-        except OSError as ERR_W:
-            if not origdir == None:
-                os.chdir(origdir)
-            print("ERROR: There was an error writting to the attribute file.\n\n", ERR_W, "\n")
-            sys.exit(1)
-        
-        if not origdir == None:
-            os.chdir(origdir)
-
-
+        save_attrs(args.p, args.o, args.r)
     elif args.mode == "restore":
-        ATTR_FILE_NAME = args.i
-        if ATTR_FILE_NAME.endswith('"'):
-            ATTR_FILE_NAME = ATTR_FILE_NAME[:-1] + "\\" # Windows escapes the quote if the command ends in \" so this fixes that
-        if os.path.basename(ATTR_FILE_NAME) == "":
-            ATTR_FILE_NAME = os.path.join(ATTR_FILE_NAME, ".saved-file-attrs")
-        if not os.path.exists(ATTR_FILE_NAME):
-            print(
-                "Saved attributes file '%s' not found" % ATTR_FILE_NAME, file=sys.stderr
-            )
-            sys.exit(1)
-        ATTR_FILE_SIZE = os.path.getsize(ATTR_FILE_NAME)
-        if ATTR_FILE_SIZE == 0:
-            print("ERROR: The attibute file is empty!")
-            sys.exit(1)
-        try:
-            attr_file = open(ATTR_FILE_NAME, "r")
-            attrs = json.load(attr_file)
-            apply_file_attrs(attrs)
-        except KeyboardInterrupt:
-                print("Shutdown requested... exiting")
-                sys.exit(1)
-        except OSError as ERR_R:
-            print("ERROR: There was an error reading the attribute file, no date has been changed.\n\n", ERR_R, "\n")
-            sys.exit(1)
-
+        restore_attrs(args.i)
     elif args.mode == None:
         print("You have to use either save or restore.\nSee the help.")
         sys.exit(3)

@@ -157,6 +157,7 @@ def apply_file_attrs(attrs):
 
 
 def save_attrs(pathtosave, output, relative):
+    global origdir
     if pathtosave.endswith('"'):
         pathtosave = pathtosave[:-1] + "\\"  # Windows escapes the quote if the command ends in \" so this fixes
         # that, or at least it does if this argument is the last one, otherwise the output argument will eat all the
@@ -210,10 +211,10 @@ def save_attrs(pathtosave, output, relative):
     except OSError as ERR_W:
         if origdir is not None:
             os.chdir(origdir)
-        print("ERROR: There was an error writting to the attribute file.\n\n", ERR_W, "\n")
+        print("ERROR: There was an error writing to the attribute file.\n\n", ERR_W, "\n")
         sys.exit(1)
 
-    if origdir is not None:
+    if reqstate[0] & reqstate[1]:
         os.chdir(origdir)
 
 
@@ -258,6 +259,7 @@ def main():
     save_parser.add_argument("--p", "-p", help="Set path to store attributes from (Optional, default is current path)",
                              metavar="%PATH%", default=".", nargs="?")
     save_parser.add_argument("--r", "-r", help="Store paths as relative instead of full (Optional)",
+                             action="store_true")
     restore_parser = subparsers.add_parser(
         "restore", help="Restore saved file attributes"
     )

@@ -1,7 +1,0 @@
-# Global ignore file for `ag`.
-
-# ctags files
-tags
-
-# Sourcemaps
-*.map

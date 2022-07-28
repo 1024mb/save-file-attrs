@@ -423,21 +423,21 @@ def apply_file_attrs(attrs):
                         ctime_changed = current_file_info.st_ctime != ctime
 
                         if mode_changed:
-                            print("Updating permissions for %s" % path, file=sys.stderr)
+                            print("Updating permissions for %s" % path)
                             os.chmod(path, mode)
                             proc = 1
 
                         if mtime_changed or ctime_changed or atime_changed:
-                            print("Updating dates for %s" % path, file=sys.stderr)
+                            print("Updating dates for %s" % path)
                             os.utime(path, (atime, mtime))
                             setctime(path, ctime)
                             proc = 1
                     else:
-                        print("Skipping symbolic link %s" % path, file=sys.stderr)  # Can't make utime not follow
+                        print("Skipping symbolic link %s" % path)  # Can't make utime not follow
                         # symbolic links in Windows, so we skip them or else the attributes of the resolved paths will
                         # be changed.
                 else:
-                    print("Skipping non-existent file %s" % path, file=sys.stderr)
+                    print("Skipping non-existent file %s" % path)
             except OSError as Err:
                 print(Err)
                 pass
@@ -459,21 +459,21 @@ def apply_file_attrs(attrs):
                     gid_changed = current_file_info.st_gid != gid
 
                     if uid_changed or gid_changed:
-                        print("Updating UID, GID for %s" % path, file=sys.stderr)
+                        print("Updating UID, GID for %s" % path)
                         os.chown(path, uid, gid, follow_symlinks=False)
                         proc = 1
 
                     if mode_changed:
-                        print("Updating permissions for %s" % path, file=sys.stderr)
+                        print("Updating permissions for %s" % path)
                         os.chmod(path, mode, follow_symlinks=False)
                         proc = 1
 
                     if mtime_changed or atime_changed:
-                        print("Updating mtime or atime for %s" % path, file=sys.stderr)
+                        print("Updating mtime or atime for %s" % path)
                         os.utime(path, (atime, mtime), follow_symlinks=False)
                         proc = 1
                 else:
-                    print("Skipping non-existent file %s" % path, file=sys.stderr)
+                    print("Skipping non-existent file %s" % path)
             except OSError as Err:
                 print(Err)
                 pass
@@ -494,23 +494,23 @@ def apply_file_attrs(attrs):
                     gid_changed = current_file_info.st_gid != gid
 
                     if uid_changed or gid_changed:
-                        print("Updating UID, GID for %s" % path, file=sys.stderr)
+                        print("Updating UID, GID for %s" % path)
                         os.chown(path, uid, gid)
                         proc = 1
 
                     if mode_changed:
-                        print("Updating permissions for %s" % path, file=sys.stderr)
+                        print("Updating permissions for %s" % path)
                         os.chmod(path, mode)
                         proc = 1
 
                     if mtime_changed or atime_changed:
-                        print("Updating mtime or atime for %s" % path, file=sys.stderr)
+                        print("Updating mtime or atime for %s" % path)
                         os.utime(path, (atime, mtime))
                         proc = 1
                 else:
-                    print("Skipping non-existent file %s" % path, file=sys.stderr)
+                    print("Skipping non-existent file %s" % path)
             except OSError as Err:
-                print(Err)
+                print(Err, file=sys.stderr)
                 pass
     if proc == 0:
         print("Nothing to change.")
@@ -525,7 +525,7 @@ def save_attrs(pathtosave, output, relative, exclusions, exclusionsfile, exclusi
     if pathtosave.endswith(':'):
         pathtosave = pathtosave + os.path.sep
     if not os.path.exists(pathtosave):
-        print("\nERROR: The specified path:\n\n%s\n\nDoesn't exist, aborting..." % pathtosave)
+        print("\nERROR: The specified path:\n\n%s\n\nDoesn't exist, aborting..." % pathtosave, file=sys.stderr)
         sys.exit(1)
 
     attr_file_name = output
@@ -567,12 +567,12 @@ def save_attrs(pathtosave, output, relative, exclusions, exclusionsfile, exclusi
     except KeyboardInterrupt:
         if origdir in locals():
             os.chdir(origdir)
-        print("Shutdown requested... exiting")
+        print("Shutdown requested... exiting", file=sys.stderr)
         sys.exit(1)
     except OSError as ERR_W:
         if origdir in locals():
             os.chdir(origdir)
-        print("ERROR: There was an error writing to the attribute file.\n\n", ERR_W, "\n")
+        print("ERROR: There was an error writing to the attribute file.\n\n", ERR_W, "\n", file=sys.stderr)
         sys.exit(1)
 
     if reqstate[0] & reqstate[1]:
@@ -587,23 +587,27 @@ def restore_attrs(inputfile):
     if os.path.basename(attr_file_name) == "":
         attr_file_name = os.path.join(attr_file_name, ".saved-file-attrs")
     if not os.path.exists(attr_file_name):
-        print(
-            "Saved attributes file '%s' not found" % attr_file_name, file=sys.stderr
-        )
+        print("Saved attributes file \"%s\" not found" % attr_file_name, file=sys.stderr)
         sys.exit(1)
     attr_file_size = os.path.getsize(attr_file_name)
+
     if attr_file_size == 0:
-        print("ERROR: The attribute file is empty!")
+        print("ERROR: The attribute file is empty!", file=sys.stderr)
         sys.exit(1)
     try:
         attr_file = open(attr_file_name, "r", encoding="utf_8")
         attrs = json.load(attr_file)
-        apply_file_attrs(attrs)
+        if len(attrs) == 0:
+            print("ERROR: The attribute file is empty!", file=sys.stderr)
+            sys.exit(1)
+        else:
+            apply_file_attrs(attrs)
     except KeyboardInterrupt:
-        print("Shutdown requested... exiting")
+        print("Shutdown requested... exiting", file=sys.stderr)
         sys.exit(1)
     except OSError as ERR_R:
-        print("ERROR: There was an error reading the attribute file, no date has been changed.\n\n", ERR_R, "\n")
+        print("ERROR: There was an error reading the attribute file, no date has been changed.\n\n", ERR_R, "\n",
+              file=sys.stderr)
         sys.exit(1)
 
 
@@ -647,14 +651,17 @@ def main():
     if args.mode == "save":
         if args.ed is not None:
             if len(args.ed) == 0 or "" in args.ed:
-                print("ERROR: Directory exclusion can't be empty or else everything will be excluded, aborting...")
+                print("ERROR: Directory exclusion can't be empty or else everything will be excluded, aborting...",
+                      file=sys.stderr)
                 sys.exit(3)
         elif args.ex is not None:
             if len(args.ex) == 0 or "" in args.ex:
-                print("ERROR: Exclusion can't be empty or else everything will be excluded, aborting...")
+                print("ERROR: Exclusion can't be empty or else everything will be excluded, aborting...",
+                      file=sys.stderr)
                 sys.exit(3)
         elif args.ex is not None and (args.ef or args.ed) is not None:
-            print("ERROR: You can't use --ex with --ef or --ed, you should use --ef and --ed or use only one of them")
+            print("ERROR: You can't use --ex with --ef or --ed, you should use --ef and --ed or use only one of them",
+                  file=sys.stderr)
             sys.exit(3)
         else:
             save_attrs(args.p, args.o, args.r, args.ex, args.ef, args.ed)

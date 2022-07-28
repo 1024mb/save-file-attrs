@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python
 
 # Utility script for saving and restore the modification times,
 # owners and mode for all files in a tree.
@@ -528,42 +528,42 @@ def save_attrs(pathtosave, output, relative, exclusions, exclusionsfile, exclusi
         print("\nERROR: The specified path:\n\n%s\n\nDoesn't exist, aborting..." % pathtosave)
         sys.exit(1)
 
-    ATTR_FILE_NAME = output
-    if ATTR_FILE_NAME.endswith('"'):
-        ATTR_FILE_NAME = ATTR_FILE_NAME[
-                         :-1]  # Windows escapes the quote if the command ends in \" so this fixes that, or at least
-        # it does if this argument is the last one, otherwise the output argument will eat all the following args
+    attr_file_name = output
+    if attr_file_name.endswith('"'):
+        attr_file_name = attr_file_name[:-1]  # Windows escapes the quote if the command ends in \" so this fixes
+        # that, or at least it does if this argument is the last one, otherwise the output argument will eat all the
+        # following args
 
-    if ATTR_FILE_NAME.endswith(':'):
-        ATTR_FILE_NAME = ATTR_FILE_NAME + os.path.sep
+    if attr_file_name.endswith(':'):
+        attr_file_name = attr_file_name + os.path.sep
 
-    if not os.path.dirname(ATTR_FILE_NAME) == "":  # if the root directory of ATTR_FILE_NAME is not an empty string
+    if not os.path.dirname(attr_file_name) == "":  # if the root directory of attr_file_name is not an empty string
         if not os.path.exists(
-                os.path.dirname(ATTR_FILE_NAME)):  # if the path of the root directory of ATTR_FILE_NAME doesn't exist
-            os.makedirs(os.path.dirname(ATTR_FILE_NAME))  # create the path
+                os.path.dirname(attr_file_name)):  # if the path of the root directory of attr_file_name doesn't exist
+            os.makedirs(os.path.dirname(attr_file_name))  # create the path
 
-    if os.path.basename(ATTR_FILE_NAME) == "":
-        ATTR_FILE_NAME = os.path.join(ATTR_FILE_NAME, ".saved-file-attrs")
+    if os.path.basename(attr_file_name) == "":
+        attr_file_name = os.path.join(attr_file_name, ".saved-file-attrs")
 
     reqstate = [relative is True,
                 pathtosave != os.curdir,
-                os.path.dirname(ATTR_FILE_NAME) == ""
+                os.path.dirname(attr_file_name) == ""
                 ]
 
     origpath = pathtosave
     if reqstate[0] & reqstate[1]:
         origdir = os.getcwd()
     if all(reqstate):
-        ATTR_FILE_NAME = os.path.join(os.getcwd(), ATTR_FILE_NAME)
+        attr_file_name = os.path.join(os.getcwd(), attr_file_name)
     if reqstate[0] & reqstate[1]:
         os.chdir(pathtosave)
         pathtosave = os.curdir
 
     try:
-        attr_file = open(ATTR_FILE_NAME, "w", encoding="utf_8")
+        attr_file = open(attr_file_name, "w", encoding="utf_8")
         attrs = collect_file_attrs(pathtosave, exclusions, origpath, relative, exclusionsfile, exclusionsdir)
         json.dump(attrs, attr_file, indent=2, ensure_ascii=False)
-        print("Attributes saved to " + ATTR_FILE_NAME)
+        print("Attributes saved to " + attr_file_name)
     except KeyboardInterrupt:
         if origdir in locals():
             os.chdir(origdir)
@@ -580,23 +580,23 @@ def save_attrs(pathtosave, output, relative, exclusions, exclusionsfile, exclusi
 
 
 def restore_attrs(inputfile):
-    ATTR_FILE_NAME = inputfile
-    if ATTR_FILE_NAME.endswith('"'):
-        ATTR_FILE_NAME = ATTR_FILE_NAME[:-1] + "\\"  # Windows escapes the quote if the command ends in \" so this
+    attr_file_name = inputfile
+    if attr_file_name.endswith('"'):
+        attr_file_name = attr_file_name[:-1] + "\\"  # Windows escapes the quote if the command ends in \" so this
         # fixes that
-    if os.path.basename(ATTR_FILE_NAME) == "":
-        ATTR_FILE_NAME = os.path.join(ATTR_FILE_NAME, ".saved-file-attrs")
-    if not os.path.exists(ATTR_FILE_NAME):
+    if os.path.basename(attr_file_name) == "":
+        attr_file_name = os.path.join(attr_file_name, ".saved-file-attrs")
+    if not os.path.exists(attr_file_name):
         print(
-            "Saved attributes file '%s' not found" % ATTR_FILE_NAME, file=sys.stderr
+            "Saved attributes file '%s' not found" % attr_file_name, file=sys.stderr
         )
         sys.exit(1)
-    ATTR_FILE_SIZE = os.path.getsize(ATTR_FILE_NAME)
-    if ATTR_FILE_SIZE == 0:
+    attr_file_size = os.path.getsize(attr_file_name)
+    if attr_file_size == 0:
         print("ERROR: The attribute file is empty!")
         sys.exit(1)
     try:
-        attr_file = open(ATTR_FILE_NAME, "r", encoding="utf_8")
+        attr_file = open(attr_file_name, "r", encoding="utf_8")
         attrs = json.load(attr_file)
         apply_file_attrs(attrs)
     except KeyboardInterrupt:
@@ -611,36 +611,49 @@ def main():
     parser = argparse.ArgumentParser(description="Save and restore file attributes in a directory tree")
     subparsers = parser.add_subparsers(dest="mode", help="Select the mode of operation")
     save_parser = subparsers.add_parser(
-        "save", help="Save the attributes of files and folders in a directory tree\n"
+        "save", help="Save the attributes of files and folders in a directory tree"
     )
-    save_parser.add_argument("--o", "-o", help="Set output file (Optional, default is .saved-file-attrs)",
+    save_parser.add_argument("--o", "-o", help="Set the output file (Optional, "
+                                               "default is \".saved-file-attrs\" in current dir)",
                              metavar="%OUTPUT%", default=".saved-file-attrs", nargs="?")
-    save_parser.add_argument("--p", "-p", help="Set path to store attributes from (Optional, default is current path)",
+    save_parser.add_argument("--p", "-p", help="Set the path to store attributes from (Optional, "
+                                               "default is current path)",
                              metavar="%PATH%", default=os.curdir, nargs="?")
-    save_parser.add_argument("--r", "-r", help="Store paths as relative instead of full (Optional)",
+    save_parser.add_argument("--r", "-r", help="Store the paths as relative instead of full (Optional)",
                              action="store_true")
     save_parser.add_argument("--ex", "-ex", help="Match these strings indiscriminately and exclude them, program will "
                                                  "exclude anything that includes these strings in their paths unless a "
-                                                 "full path is specified in which case it will be considered a"
-                                                 "directory and everything inside will be excluded (Optional)",
-                             nargs="*")
+                                                 "full path is specified in which case it will be considered a "
+                                                 "directory and everything inside will be excluded. (Optional)",
+                             metavar="%NAME%", nargs="*")
     save_parser.add_argument("--ef", "-ef", help="Match all the paths that incorporates these strings and exclude "
                                                  "them, strings are considered filenames unless a full path is given "
-                                                 "in which case only that file will be excluded (Optional)", nargs="*")
+                                                 "in which case only that file will be excluded. If the argument is "
+                                                 "given without any value, all the files will be excluded. (Optional)",
+                             metavar="%FILE%", nargs="*")
     save_parser.add_argument("--ed", "-ed", help="Match all the paths that incorporates these strings and exclude "
                                                  "them, strings are considered directories unless a full path is "
                                                  "given in which case it will exclude all the subdirs and files "
-                                                 "inside that directory (Optional)",
-                             nargs="*")
+                                                 "inside that directory. (Optional)",
+                             metavar="%DIRECTORY%", nargs="*")
     restore_parser = subparsers.add_parser(
-        "restore", help="Restore saved file and folder attributes\n"
+        "restore", help="Restore saved file and folder attributes"
     )
-    restore_parser.add_argument("--i", "-i", help="Set input file (Optional, default is .saved-file-attrs)",
+    restore_parser.add_argument("--i", "-i", help="Set the input file containing the attributes to restore (Optional, "
+                                                  "default is \".saved-file-attrs\" in current dir)",
                                 metavar="%INPUT%", default=".saved-file-attrs", nargs="?")
     args = parser.parse_args()
 
     if args.mode == "save":
-        if args.ex is not None and (args.ef or args.ed) is not None:
+        if args.ed is not None:
+            if len(args.ed) == 0 or "" in args.ed:
+                print("ERROR: Directory exclusion can't be empty or else everything will be excluded, aborting...")
+                sys.exit(3)
+        elif args.ex is not None:
+            if len(args.ex) == 0 or "" in args.ex:
+                print("ERROR: Exclusion can't be empty or else everything will be excluded, aborting...")
+                sys.exit(3)
+        elif args.ex is not None and (args.ef or args.ed) is not None:
             print("ERROR: You can't use --ex with --ef or --ed, you should use --ef and --ed or use only one of them")
             sys.exit(3)
         else:

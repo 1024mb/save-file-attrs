@@ -17,7 +17,10 @@ if platform.system() == "Windows":
 
 
 def collect_file_attrs(path, exclusions, origpath, relative, exclusionsfile, exclusionsdir):
-    dirs = os.walk(path)
+    if relative is False and origpath == ".":
+        dirs = os.walk(os.getcwd())
+    else:
+        dirs = os.walk(path)
     file_attrs = {}
 
     # exclusions setup start
@@ -69,7 +72,11 @@ def collect_file_attrs(path, exclusions, origpath, relative, exclusionsfile, exc
         if exclusionsdir is not None:
             if origpath != os.curdir:
                 for i, s in enumerate(exclusionsdir):
-                    exclusionsdir[i] = re.escape(s)
+                    if re.search("(^\\.\\\\)", s) is not None:
+                        r = os.path.normpath(os.path.join(origpath, s))
+                        exclusionsdir[i] = re.escape(r)
+                    else:
+                        exclusionsdir[i] = re.escape(s)
             else:
                 for i, s in enumerate(exclusionsdir):
                     if re.search("(^\\.\\\\|^\\\\)", s) is not None:

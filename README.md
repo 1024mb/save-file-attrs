@@ -47,14 +47,19 @@ options:
                         Set the working path, the attributes will be applied to the contents of this path (Optional,
                         default is the current directory)
 ```
-
+###
 Exclusions need more testing, it currently works like this:
 
-- `ex`: Matches the given strings not caring whether they are files or directories and excludes them, the program will exclude anything that includes these strings in their paths, like using regex `.*STRING.*` unless a full path is specified in which case it will always be considered a directory and everything inside will be excluded.
-- `ed`: Matches all the paths -that are directories- that incorporate these strings and excludes them, it will match all the directories that have this like in `ex` (`.*STRING.*`) unless a full path is given in which case it will only exclude all the subdirs and files inside that directory, and said dir.  
-From 0.4.1+ if the argument is given with a string starting with `.\` it will consider the folder to be located at the root directory and will match every folder that starts with the given string, if starts with `\` it will match all the directories that starts with the given string not necessarily in the root directory.
-- `ef`: Matches all the paths that incorporates these strings and exclude them, strings are considered filenames and it works like `ex` (`.*STRING.*`) unless a full path is given in which case only that file will be excluded. If `ef` is supplied without any value it will exclude all the files.
+- `ex`: Matches the given strings not caring whether they are files or directories and excludes them, the program will exclude anything that includes these strings in their paths, like using regex `.*STRING.*` unless a full path is specified in which case it will always be considered a directory and everything inside will be excluded.  
+Using `\` at the start of the string will make it match everything that starts with the value, using `.\` at the start will make it match only in the root dir.  
 
+- `ed`: Matches all the paths -that are directories- that incorporate these strings and excludes them, it will match all the directories that have this like in `ex` (`.*STRING.*`) unless a full path is given in which case it will only exclude all the subdirs and files inside that directory, and said dir.  
+If the argument is given with a string starting with `.\` it will consider the folder to be located at the root directory and will match every folder that starts with the given string, if starts with `\` it will match all the directories that start with the given string not necessarily in the root directory.  
+
+- `ef`: Matches all the paths that incorporates these strings and excludes them, strings are considered filenames and it works like `ex` (`.*STRING.*`) unless a full path is given in which case only that file will be excluded. If `ef` is supplied without any value (either using only `--ef` or `--ef ""`) it will exclude all the files.  
+Using `\` at the start of the string will make it match everything that starts with the string, using `.\` at the start will make it match only in the root dir.
+
+###
 
 If we have this:
 
@@ -94,7 +99,7 @@ dir A\dir B\also.this.txt         <- file
    
    
 ##
-## :warning: EXCLUSIONS ARE CASE INSENSITIVE IF THE PLATFORM IS WINDOWS!!! :warning:  
+## :warning: EXCLUSIONS ARE CASE INSENSITIVE IF THE PLATFORM IS WINDOWS :warning:  
 Windows is not a case-sensitive OS so this most probably is intended, leaving this warning anyway.
 
 

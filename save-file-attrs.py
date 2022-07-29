@@ -22,35 +22,51 @@ def collect_file_attrs(path, exclusions, origpath, relative, exclusionsfile, exc
     else:
         dirs = os.walk(path)
     file_attrs = {}
+    exclusions2 = []  # this is for exclusions that are full paths, so we can store the root directory
 
     # exclusions setup start
-    exclusions2 = []  # this is for exclusions that are full paths, so we can store the root directory
     if origpath != os.curdir:  # this doesn't indicate whether relative has been set because this also applies if -p
         # hasn't been used
         replacedpath = re.escape(origpath)  # path ready for regex
-    if relative is False:
+    if relative is False:  # all paths will be saved as full
         if exclusions is not None:
-            if origpath != os.curdir:
+            if origpath != os.curdir:  # if origpath has a value other than .
                 if platform.system() == "Windows":
                     for i, s in enumerate(exclusions):
-                        if re.match(replacedpath, s, flags=re.IGNORECASE) is None:
-                            exclusions[i] = re.escape(s)
-                        else:
+                        if s.startswith(os.curdir + os.path.sep):
+                            r = os.path.normpath(os.path.join(origpath, s))
+                            exclusions[i] = re.escape(r)
+                        elif re.match(replacedpath, s, flags=re.IGNORECASE) is not None:
                             r = s + os.path.sep  # adding a slash to the end of the path because the string is a
                             # directory, or at least that's how we consider it always when using --ex
-                            exclusions[i] = re.escape(r)
+                            exclusions[i] = re.escape(s)
+                            exclusions2.append(r)
+                        else:
+                            exclusions[i] = re.escape(s)
                 else:
                     for i, s in enumerate(exclusions):
-                        if re.match(replacedpath, s) is None:
-                            exclusions[i] = re.escape(s)
-                        else:
+                        if s.startswith(os.curdir + os.path.sep):
+                            r = os.path.normpath(os.path.join(origpath, s))
+                            exclusions[i] = re.escape(r)
+                        elif s.startswith(origpath) is True:
                             r = s + os.path.sep  # adding a slash to the end of the path because the string is a
                             # directory, or at least that's how we consider it always when using --ex
-                            exclusions[i] = re.escape(r)
-            else:
+                            exclusions[i] = re.escape(s)
+                            exclusions2.append(r)
+                        else:
+                            exclusions[i] = re.escape(s)
+            else:  # if is os.curdir
                 for i, s in enumerate(exclusions):
-                    r = os.path.relpath(s)
-                    exclusions[i] = re.escape(r)
+                    if s.startswith(os.curdir + os.path.sep):
+                        r = os.path.abspath(s)
+                        exclusions[i] = re.escape(r)
+                    elif s.startswith(os.getcwd()) is True:
+                        r = s + os.path.sep  # adding a slash to the end of the path because the string is a
+                        # directory, or at least that's how we consider it always when using --ex
+                        exclusions[i] = re.escape(s)
+                        exclusions2.append(re.escape(r))
+                    else:
+                        exclusions[i] = re.escape(s)
             if len(exclusions2) != 0:
                 regex_excl = "|".join(exclusions) + "|" + "|".join(exclusions2)
             else:
@@ -58,56 +74,74 @@ def collect_file_attrs(path, exclusions, origpath, relative, exclusionsfile, exc
         if exclusionsfile is not None:
             if origpath != os.curdir:
                 for i, s in enumerate(exclusionsfile):
-                    exclusionsfile[i] = re.escape(s)
+                    a = os.path.splitdrive(s)
+                    if s.startswith(os.curdir + os.path.sep):
+                        r = os.path.normpath(os.path.join(origpath, s))
+                        exclusionsfile[i] = re.escape(r)
+                    elif a[0] != "":
+                        exclusionsfile[i] = "^" + re.escape(s) + "$"
+                    else:
+                        exclusionsfile[i] = re.escape(s)
             else:
                 for i, s in enumerate(exclusionsfile):
                     a = os.path.splitdrive(s)
-                    if a[0] != "":
-                        r = os.path.relpath(s)
-                        exclusionsfile[i] = "^" + re.escape(os.curdir + os.path.sep + r) + "$"
-                    else:
-                        r = os.path.relpath(s)
+                    if s.startswith(os.curdir + os.path.sep):
+                        r = os.path.abspath(s)
                         exclusionsfile[i] = re.escape(r)
+                    elif a[0] != "":
+                        exclusionsfile[i] = "^" + re.escape(s) + "$"
+                    else:
+                        exclusionsfile[i] = re.escape(s)
             regex_excl = "|".join(exclusionsfile)
         if exclusionsdir is not None:
             if origpath != os.curdir:
                 for i, s in enumerate(exclusionsdir):
-                    if re.search("(^\\.\\\\)", s) is not None:
+                    if s.startswith(os.curdir + os.path.sep):
                         r = os.path.normpath(os.path.join(origpath, s))
                         exclusionsdir[i] = re.escape(r)
                     else:
                         exclusionsdir[i] = re.escape(s)
             else:
                 for i, s in enumerate(exclusionsdir):
-                    if re.search("(^\\.\\\\|^\\\\)", s) is not None:
-                        exclusionsdir[i] = re.escape(s)
-                    else:
-                        r = os.path.relpath(s)
+                    if s.startswith(os.curdir + os.path.sep):
+                        r = os.path.abspath(s)
                         exclusionsdir[i] = re.escape(r)
+                    else:
+                        exclusionsdir[i] = re.escape(s)
             regex_excl_dirs = "|".join(exclusionsdir)
     else:  # if relative is true
         if exclusions is not None:
             for i, s in enumerate(exclusions):
-                r = os.path.relpath(s)
-                exclusions[i] = re.escape(r)
+                a = os.path.splitdrive(s)
+                if s.startswith(os.path.sep) or s.startswith(os.curdir + os.path.sep):
+                    exclusions[i] = re.escape(s)
+                elif a[0] != "":
+                    r = os.path.relpath(s)
+                    exclusions[i] = re.escape(r)
+                else:
+                    exclusions[i] = re.escape(s)
             regex_excl = "|".join(exclusions)
         if exclusionsfile is not None:
             for i, s in enumerate(exclusionsfile):
                 a = os.path.splitdrive(s)
-                if a[0] != "":
+                if s.startswith(os.path.sep) or s.startswith(os.curdir + os.path.sep):
+                    exclusionsfile[i] = re.escape(s)
+                elif a[0] != "":
                     r = os.path.relpath(s)
-                    exclusionsfile[i] = "^" + re.escape(os.curdir + os.path.sep + r) + "$"
+                    exclusionsfile[i] = "^" + re.escape(r) + "$"
                 else:
-                    r = os.path.relpath(s)
-                    exclusionsfile[i] = re.escape(r)
+                    exclusionsfile[i] = re.escape(s)
             regex_excl = "|".join(exclusionsfile)
         if exclusionsdir is not None:
             for i, s in enumerate(exclusionsdir):
-                if re.search("(^\\.\\\\|^\\\\)", s) is not None:
+                a = os.path.splitdrive(s)
+                if s.startswith(os.path.sep) or s.startswith(os.curdir + os.path.sep):
                     exclusionsdir[i] = re.escape(s)
-                else:
+                elif a[0] != "":
                     r = os.path.relpath(s)
-                    exclusionsdir[i] = re.escape(r)
+                    exclusionsfile[i] = "^" + re.escape(r)
+                else:
+                    exclusionsdir[i] = re.escape(s)
             regex_excl_dirs = "|".join(exclusionsdir)
     #  exclusions setup end
 
@@ -571,7 +605,7 @@ def apply_file_attrs(attrs):
 
 def save_attrs(pathtosave, output, relative, exclusions, exclusionsfile, exclusionsdir):
     if pathtosave.endswith('"'):
-        pathtosave = pathtosave[:-1] + "\\"  # Windows escapes the quote if the command ends in \" so this fixes
+        pathtosave = pathtosave[:-1] + os.path.sep  # Windows escapes the quote if the command ends in \" so this fixes
         # that, or at least it does if this argument is the last one, otherwise the output argument will eat all the
         # next args
     if pathtosave.endswith(':'):
@@ -634,8 +668,8 @@ def save_attrs(pathtosave, output, relative, exclusions, exclusionsfile, exclusi
 def restore_attrs(inputfile, workingpath):
     attr_file_name = inputfile
     if attr_file_name.endswith('"'):
-        attr_file_name = attr_file_name[:-1] + "\\"  # Windows escapes the quote if the command ends in \" so this
-        # fixes that
+        attr_file_name = attr_file_name[:-1] + os.path.sep  # Windows escapes the quote if the command ends in \" so
+        # this fixes that
     if os.path.basename(attr_file_name) == "":
         attr_file_name = os.path.join(attr_file_name, ".saved-file-attrs")
     if not os.path.exists(attr_file_name):

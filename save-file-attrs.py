@@ -10,6 +10,8 @@ import platform
 import re
 import sys
 
+from version import __version__
+
 if platform.system() == "Windows":
     from win32_setctime import setctime
 
@@ -676,6 +678,8 @@ def restore_attrs(inputfile, workingpath):
 
 def main():
     parser = argparse.ArgumentParser(description="Save and restore file attributes in a directory tree")
+    parser.add_argument("--version", "-version", action="version",
+                        version='%(prog)s v{version}'.format(version=__version__))
     subparsers = parser.add_subparsers(dest="mode", help="Select the mode of operation")
     save_parser = subparsers.add_parser(
         "save", help="Save the attributes of files and folders in a directory tree"

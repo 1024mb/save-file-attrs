@@ -123,8 +123,7 @@ def collect_file_attrs(path, exclusions, origpath, relative, exclusionsfile, exc
                                 "gid": file_info.st_gid,
                             }
                         elif origpath == os.curdir or relative:
-                            print("\"" + os.path.join(dirpath, file).replace(os.curdir + os.path.sep, os.getcwd() +
-                                                                             os.path.sep, 1) + "\" has been skipped.")
+                            print("\"" + os.path.abspath(os.path.join(dirpath, file)) + "\" has been skipped.")
                         else:
                             print("\"" + os.path.join(dirpath, file) + "\" has been skipped.")
                     if exclusionsfile is not None and exclusionsdir is None:
@@ -142,9 +141,7 @@ def collect_file_attrs(path, exclusions, origpath, relative, exclusionsfile, exc
                                     "gid": file_info.st_gid,
                                 }
                             elif origpath == os.curdir or relative:
-                                print("\"" + os.path.join(dirpath, file).replace(os.curdir + os.path.sep, os.getcwd()
-                                                                                 + os.path.sep, 1) + "\" has been "
-                                                                                                     "skipped.")
+                                print("\"" + os.path.abspath(os.path.join(dirpath, file)) + "\" has been skipped.")
                             else:
                                 print("\"" + os.path.join(dirpath, file) + "\" has been skipped.")
                         else:
@@ -173,9 +170,7 @@ def collect_file_attrs(path, exclusions, origpath, relative, exclusionsfile, exc
                                     "gid": file_info.st_gid,
                                 }
                             elif origpath == os.curdir or relative:
-                                print("\"" + os.path.join(dirpath, file).replace(os.curdir + os.path.sep, os.getcwd()
-                                                                                 + os.path.sep, 1) + "\" has been "
-                                                                                                     "skipped.")
+                                print("\"" + os.path.abspath(os.path.join(dirpath, file)) + "\" has been skipped.")
                             else:
                                 print("\"" + os.path.join(dirpath, file) + "\" has been skipped.")
                         else:
@@ -192,9 +187,7 @@ def collect_file_attrs(path, exclusions, origpath, relative, exclusionsfile, exc
                                     "gid": file_info.st_gid,
                                 }
                             elif origpath == os.curdir or relative:
-                                print("\"" + os.path.join(dirpath, file).replace(os.curdir + os.path.sep, os.getcwd()
-                                                                                 + os.path.sep, 1) + "\" has been "
-                                                                                                     "skipped.")
+                                print("\"" + os.path.abspath(os.path.join(dirpath, file)) + "\" has been skipped.")
                             else:
                                 print("\"" + os.path.join(dirpath, file) + "\" has been skipped.")
                     elif (exclusionsdir and exclusionsfile) is not None:
@@ -212,9 +205,7 @@ def collect_file_attrs(path, exclusions, origpath, relative, exclusionsfile, exc
                                     "gid": file_info.st_gid,
                                 }
                             elif origpath == os.curdir or relative:
-                                print("\"" + os.path.join(dirpath, file).replace(os.curdir + os.path.sep, os.getcwd()
-                                                                                 + os.path.sep, 1) + "\" has been "
-                                                                                                     "skipped.")
+                                print("\"" + os.path.abspath(os.path.join(dirpath, file)) + "\" has been skipped.")
                             else:
                                 print("\"" + os.path.join(dirpath, file) + "\" has been skipped.")
                         else:
@@ -233,15 +224,11 @@ def collect_file_attrs(path, exclusions, origpath, relative, exclusionsfile, exc
                                         "gid": file_info.st_gid,
                                     }
                                 elif origpath == os.curdir or relative:
-                                    print("\"" + os.path.join(dirpath, file).replace(os.curdir + os.path.sep,
-                                                                                     os.getcwd() + os.path.sep, 1)
-                                          + "\" has been skipped.")
+                                    print("\"" + os.path.abspath(os.path.join(dirpath, file)) + "\" has been skipped.")
                                 else:
                                     print("\"" + os.path.join(dirpath, file) + "\" has been skipped.")
                             elif origpath == os.curdir or relative:
-                                print("\"" + os.path.join(dirpath, file).replace(os.curdir + os.path.sep, os.getcwd()
-                                                                                 + os.path.sep, 1) + "\" has been "
-                                                                                                     "skipped.")
+                                print("\"" + os.path.abspath(os.path.join(dirpath, file)) + "\" has been skipped.")
                             else:
                                 print("\"" + os.path.join(dirpath, file) + "\" has been skipped.")
                     elif (exclusions and exclusionsfile and exclusionsdir) is None:
@@ -269,8 +256,7 @@ def collect_file_attrs(path, exclusions, origpath, relative, exclusionsfile, exc
                                 "gid": file_info.st_gid,
                             }
                         elif origpath == os.curdir or relative:
-                            print("\"" + os.path.join(dirpath, file).replace(os.curdir + os.path.sep, os.getcwd()
-                                                                             + os.path.sep, 1) + "\" has been skipped.")
+                            print("\"" + os.path.abspath(os.path.join(dirpath, file)) + "\" has been skipped.")
                         else:
                             print("\"" + os.path.join(dirpath, file) + "\" has been skipped.")
                     if exclusionsfile is not None and exclusionsdir is None:
@@ -288,9 +274,7 @@ def collect_file_attrs(path, exclusions, origpath, relative, exclusionsfile, exc
                                     "gid": file_info.st_gid,
                                 }
                             elif origpath == os.curdir or relative:
-                                print("\"" + os.path.join(dirpath, file).replace(os.curdir + os.path.sep, os.getcwd() +
-                                                                                 os.path.sep,
-                                                                                 1) + "\" has been skipped.")
+                                print("\"" + os.path.abspath(os.path.join(dirpath, file)) + "\" has been skipped.")
                             else:
                                 print("\"" + os.path.join(dirpath, file) + "\" has been skipped.")
                         else:
@@ -319,9 +303,7 @@ def collect_file_attrs(path, exclusions, origpath, relative, exclusionsfile, exc
                                     "gid": file_info.st_gid,
                                 }
                             elif origpath == os.curdir or relative:
-                                print("\"" + os.path.join(dirpath, file).replace(os.curdir + os.path.sep, os.getcwd() +
-                                                                                 os.path.sep,
-                                                                                 1) + "\" has been skipped.")
+                                print("\"" + os.path.abspath(os.path.join(dirpath, file)) + "\" has been skipped.")
                             else:
                                 print("\"" + os.path.join(dirpath, file) + "\" has been skipped.")
                         else:
@@ -338,9 +320,7 @@ def collect_file_attrs(path, exclusions, origpath, relative, exclusionsfile, exc
                                     "gid": file_info.st_gid,
                                 }
                             elif origpath == os.curdir or relative:
-                                print("\"" + os.path.join(dirpath, file).replace(os.curdir + os.path.sep, os.getcwd() +
-                                                                                 os.path.sep,
-                                                                                 1) + "\" has been skipped.")
+                                print("\"" + os.path.abspath(os.path.join(dirpath, file)) + "\" has been skipped.")
                             else:
                                 print("\"" + os.path.join(dirpath, file) + "\" has been skipped.")
                     elif (exclusionsdir and exclusionsfile) is not None:
@@ -358,9 +338,7 @@ def collect_file_attrs(path, exclusions, origpath, relative, exclusionsfile, exc
                                     "gid": file_info.st_gid,
                                 }
                             elif origpath == os.curdir or relative:
-                                print("\"" + os.path.join(dirpath, file).replace(os.curdir + os.path.sep, os.getcwd() +
-                                                                                 os.path.sep,
-                                                                                 1) + "\" has been skipped.")
+                                print("\"" + os.path.abspath(os.path.join(dirpath, file)) + "\" has been skipped.")
                             else:
                                 print("\"" + os.path.join(dirpath, file) + "\" has been skipped.")
                         else:
@@ -386,9 +364,7 @@ def collect_file_attrs(path, exclusions, origpath, relative, exclusionsfile, exc
                                 else:
                                     print("\"" + os.path.join(dirpath, file) + "\" has been skipped.")
                             elif origpath == os.curdir or relative:
-                                print("\"" + os.path.join(dirpath, file).replace(os.curdir + os.path.sep, os.getcwd() +
-                                                                                 os.path.sep,
-                                                                                 1) + "\" has been skipped.")
+                                print("\"" + os.path.abspath(os.path.join(dirpath, file)) + "\" has been skipped.")
                             else:
                                 print("\"" + os.path.join(dirpath, file) + "\" has been skipped.")
                     elif (exclusions and exclusionsfile and exclusionsdir) is None:

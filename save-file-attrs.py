@@ -72,8 +72,11 @@ def collect_file_attrs(path, exclusions, origpath, relative, exclusionsfile, exc
                     exclusionsdir[i] = re.escape(s)
             else:
                 for i, s in enumerate(exclusionsdir):
-                    r = os.path.relpath(s)
-                    exclusionsdir[i] = re.escape(r)
+                    if re.search("(^\\.\\\\|^\\\\)", s) is not None:
+                        exclusionsdir[i] = re.escape(s)
+                    else:
+                        r = os.path.relpath(s)
+                        exclusionsdir[i] = re.escape(r)
             regex_excl_dirs = "|".join(exclusionsdir)
     else:  # if relative is true
         if exclusions is not None:
@@ -93,8 +96,11 @@ def collect_file_attrs(path, exclusions, origpath, relative, exclusionsfile, exc
             regex_excl = "|".join(exclusionsfile)
         if exclusionsdir is not None:
             for i, s in enumerate(exclusionsdir):
-                r = os.path.relpath(s)
-                exclusionsdir[i] = re.escape(r)
+                if re.search("(^\\.\\\\|^\\\\)", s) is not None:
+                    exclusionsdir[i] = re.escape(s)
+                else:
+                    r = os.path.relpath(s)
+                    exclusionsdir[i] = re.escape(r)
             regex_excl_dirs = "|".join(exclusionsdir)
     #  exclusions setup end
 

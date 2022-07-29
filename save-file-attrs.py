@@ -745,14 +745,18 @@ def main():
     if args.mode == "save":
         if args.ed is not None:
             if len(args.ed) == 0 or "" in args.ed:
-                print("ERROR: Directory exclusion can't be empty or else everything will be excluded, aborting...",
+                print("ERROR: Directory exclusion can't be empty or have an empty value or else everything will be "
+                      "excluded, aborting...",
                       file=sys.stderr)
                 sys.exit(3)
         if args.ex is not None:
             if len(args.ex) == 0 or "" in args.ex:
-                print("ERROR: Exclusion can't be empty or else everything will be excluded, aborting...",
+                print("ERROR: Exclusion can't be empty or have an empty value or else everything will be excluded, "
+                      "aborting...",
                       file=sys.stderr)
                 sys.exit(3)
+        if args.ef is not None and "" in args.ef:
+            print("WARNING: You have used an empty value for file exclusions, every file will be excluded.")
         if args.ex is not None and (args.ef or args.ed) is not None:
             print("ERROR: You can't use --ex with --ef or --ed, you should use --ef and --ed or use only one of them",
                   file=sys.stderr)

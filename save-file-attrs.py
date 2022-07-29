@@ -423,21 +423,39 @@ def apply_file_attrs(attrs):
                         ctime_changed = current_file_info.st_ctime != ctime
 
                         if mode_changed:
-                            print("Updating permissions for %s" % path)
-                            os.chmod(path, mode)
-                            proc = 1
+                            if os.path.splitdrive(path)[0] == "":
+                                print("Updating permissions for \"%s\"" % os.path.abspath(path))
+                                os.chmod(path, mode)
+                                proc = 1
+                            else:
+                                print("Updating permissions for \"%s\"" % path)
+                                os.chmod(path, mode)
+                                proc = 1
 
                         if mtime_changed or ctime_changed or atime_changed:
-                            print("Updating dates for %s" % path)
-                            os.utime(path, (atime, mtime))
-                            setctime(path, ctime)
-                            proc = 1
+                            if os.path.splitdrive(path)[0] == "":
+                                print("Updating dates for \"%s\"" % os.path.abspath(path))
+                                os.utime(path, (atime, mtime))
+                                setctime(path, ctime)
+                                proc = 1
+                            else:
+                                print("Updating dates for \"%s\"" % path)
+                                os.utime(path, (atime, mtime))
+                                setctime(path, ctime)
+                                proc = 1
                     else:
-                        print("Skipping symbolic link %s" % path)  # Can't make utime not follow
-                        # symbolic links in Windows, so we skip them or else the attributes of the resolved paths will
-                        # be changed.
+                        if os.path.splitdrive(path)[0] == "":
+                            print("Skipping symbolic link \"%s\"" % os.path.abspath(path))  # Can't make utime not
+                            # follow symbolic links in Windows, so we skip them or else the attributes of the resolved
+                            # paths will be changed.
+                        else:
+                            print("Skipping symbolic link \"%s\"" % path)  # Can't make utime not follow symbolic links
+                            # in Windows, so we skip them or else the attributes of the resolved paths will be changed.
                 else:
-                    print("Skipping non-existent file %s" % path)
+                    if os.path.splitdrive(path)[0] == "":
+                        print("Skipping non-existent item \"%s\"" % os.path.abspath(path))
+                    else:
+                        print("Skipping non-existent item \"%s\"" % path)
             except OSError as Err:
                 print(Err)
                 pass
@@ -446,7 +464,6 @@ def apply_file_attrs(attrs):
                 if os.path.lexists(path):
                     atime = attr["atime"]
                     mtime = attr["mtime"]
-                    ctime = attr["ctime"]
                     uid = attr["uid"]
                     gid = attr["gid"]
                     mode = attr["mode"]
@@ -459,56 +476,100 @@ def apply_file_attrs(attrs):
                     gid_changed = current_file_info.st_gid != gid
 
                     if uid_changed or gid_changed:
-                        print("Updating UID, GID for %s" % path)
-                        os.chown(path, uid, gid, follow_symlinks=False)
-                        proc = 1
+                        if os.path.splitdrive(path)[0] == "":
+                            print("Updating UID, GID for \"%s\"" % os.path.abspath(path))
+                            os.chown(path, uid, gid, follow_symlinks=False)
+                            proc = 1
+                        else:
+                            print("Updating UID, GID for \"%s\"" % path)
+                            os.chown(path, uid, gid, follow_symlinks=False)
+                            proc = 1
 
                     if mode_changed:
-                        print("Updating permissions for %s" % path)
-                        os.chmod(path, mode, follow_symlinks=False)
-                        proc = 1
+                        if os.path.splitdrive(path)[0] == "":
+                            print("Updating permissions for \"%s\"" % os.path.abspath(path))
+                            os.chmod(path, mode, follow_symlinks=False)
+                            proc = 1
+                        else:
+                            print("Updating permissions for \"%s\"" % path)
+                            os.chmod(path, mode, follow_symlinks=False)
+                            proc = 1
 
                     if mtime_changed or atime_changed:
-                        print("Updating mtime or atime for %s" % path)
-                        os.utime(path, (atime, mtime), follow_symlinks=False)
-                        proc = 1
+                        if os.path.splitdrive(path)[0] == "":
+                            print("Updating mtime or atime for \"%s\"" % os.path.abspath(path))
+                            os.utime(path, (atime, mtime), follow_symlinks=False)
+                            proc = 1
+                        else:
+                            print("Updating mtime or atime for \"%s\"" % path)
+                            os.utime(path, (atime, mtime), follow_symlinks=False)
+                            proc = 1
                 else:
-                    print("Skipping non-existent file %s" % path)
+                    if os.path.splitdrive(path)[0] == "":
+                        print("Skipping non-existent item \"%s\"" % os.path.abspath(path))
+                    else:
+                        print("Skipping non-existent item \"%s\"" % path)
             except OSError as Err:
                 print(Err)
                 pass
         else:
             try:
                 if os.path.lexists(path):
-                    atime = attr["atime"]
-                    mtime = attr["mtime"]
-                    uid = attr["uid"]
-                    gid = attr["gid"]
-                    mode = attr["mode"]
+                    if not os.path.islink(path):
+                        atime = attr["atime"]
+                        mtime = attr["mtime"]
+                        uid = attr["uid"]
+                        gid = attr["gid"]
+                        mode = attr["mode"]
 
-                    current_file_info = os.lstat(path)
-                    mode_changed = current_file_info.st_mode != mode
-                    atime_changed = current_file_info.st_atime != atime
-                    mtime_changed = current_file_info.st_mtime != mtime
-                    uid_changed = current_file_info.st_uid != uid
-                    gid_changed = current_file_info.st_gid != gid
+                        current_file_info = os.lstat(path)
+                        mode_changed = current_file_info.st_mode != mode
+                        atime_changed = current_file_info.st_atime != atime
+                        mtime_changed = current_file_info.st_mtime != mtime
+                        uid_changed = current_file_info.st_uid != uid
+                        gid_changed = current_file_info.st_gid != gid
 
-                    if uid_changed or gid_changed:
-                        print("Updating UID, GID for %s" % path)
-                        os.chown(path, uid, gid)
-                        proc = 1
+                        if uid_changed or gid_changed:
+                            if os.path.splitdrive(path)[0] == "":
+                                print("Updating UID, GID for \"%s\"" % os.path.abspath(path))
+                                os.chown(path, uid, gid)
+                                proc = 1
+                            else:
+                                print("Updating UID, GID for \"%s\"" % path)
+                                os.chown(path, uid, gid)
+                                proc = 1
 
-                    if mode_changed:
-                        print("Updating permissions for %s" % path)
-                        os.chmod(path, mode)
-                        proc = 1
+                        if mode_changed:
+                            if os.path.splitdrive(path)[0] == "":
+                                print("Updating permissions for \"%s\"" % os.path.abspath(path))
+                                os.chmod(path, mode)
+                                proc = 1
+                            else:
+                                print("Updating permissions for \"%s\"" % path)
+                                os.chmod(path, mode)
+                                proc = 1
 
-                    if mtime_changed or atime_changed:
-                        print("Updating mtime or atime for %s" % path)
-                        os.utime(path, (atime, mtime))
-                        proc = 1
+                        if mtime_changed or atime_changed:
+                            if os.path.splitdrive(path)[0] == "":
+                                print("Updating mtime or atime for \"%s\"" % os.path.abspath(path))
+                                os.utime(path, (atime, mtime))
+                                proc = 1
+                            else:
+                                print("Updating mtime or atime for \"%s\"" % path)
+                                os.utime(path, (atime, mtime))
+                                proc = 1
+                    else:
+                        if os.path.splitdrive(path)[0] == "":
+                            print("Skipping symbolic link \"%s\"" % os.path.abspath(path))  # Python doesn't support
+                            # not following symlinks in this OS so we skip them
+                        else:
+                            print("Skipping symbolic link \"%s\"" % path)  # Python doesn't support  not following
+                            # symlinks in this OS so we skip them
                 else:
-                    print("Skipping non-existent file %s" % path)
+                    if os.path.splitdrive(path)[0] == "":
+                        print("Skipping non-existent item \"%s\"" % os.path.abspath(path))
+                    else:
+                        print("Skipping non-existent item \"%s\"" % path)
             except OSError as Err:
                 print(Err, file=sys.stderr)
                 pass
@@ -579,7 +640,7 @@ def save_attrs(pathtosave, output, relative, exclusions, exclusionsfile, exclusi
         os.chdir(origdir)
 
 
-def restore_attrs(inputfile):
+def restore_attrs(inputfile, workingpath):
     attr_file_name = inputfile
     if attr_file_name.endswith('"'):
         attr_file_name = attr_file_name[:-1] + "\\"  # Windows escapes the quote if the command ends in \" so this
@@ -587,7 +648,7 @@ def restore_attrs(inputfile):
     if os.path.basename(attr_file_name) == "":
         attr_file_name = os.path.join(attr_file_name, ".saved-file-attrs")
     if not os.path.exists(attr_file_name):
-        print("Saved attributes file \"%s\" not found" % attr_file_name, file=sys.stderr)
+        print("ERROR: Saved attributes file \"%s\" not found" % attr_file_name, file=sys.stderr)
         sys.exit(1)
     attr_file_size = os.path.getsize(attr_file_name)
 
@@ -597,6 +658,8 @@ def restore_attrs(inputfile):
     try:
         attr_file = open(attr_file_name, "r", encoding="utf_8")
         attrs = json.load(attr_file)
+        if workingpath != os.curdir:
+            os.chdir(workingpath)
         if len(attrs) == 0:
             print("ERROR: The attribute file is empty!", file=sys.stderr)
             sys.exit(1)
@@ -646,6 +709,10 @@ def main():
     restore_parser.add_argument("--i", "-i", help="Set the input file containing the attributes to restore (Optional, "
                                                   "default is \".saved-file-attrs\" in current dir)",
                                 metavar="%INPUT%", default=".saved-file-attrs", nargs="?")
+    restore_parser.add_argument("--wp", "-wp", help="Set the working path, the attributes will be applied to the "
+                                                    "contents of this path (Optional, default is the current "
+                                                    "directory)",
+                                metavar="%PATH%", default=os.curdir, nargs="?")
     args = parser.parse_args()
 
     if args.mode == "save":
@@ -666,7 +733,7 @@ def main():
         else:
             save_attrs(args.p, args.o, args.r, args.ex, args.ef, args.ed)
     elif args.mode == "restore":
-        restore_attrs(args.i)
+        restore_attrs(args.i, args.wp)
     elif args.mode is None:
         print("You have to use either save or restore.\nSee the help.")
         sys.exit(3)

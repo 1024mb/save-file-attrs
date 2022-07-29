@@ -725,12 +725,12 @@ def main():
                 print("ERROR: Directory exclusion can't be empty or else everything will be excluded, aborting...",
                       file=sys.stderr)
                 sys.exit(3)
-        elif args.ex is not None:
+        if args.ex is not None:
             if len(args.ex) == 0 or "" in args.ex:
                 print("ERROR: Exclusion can't be empty or else everything will be excluded, aborting...",
                       file=sys.stderr)
                 sys.exit(3)
-        elif args.ex is not None and (args.ef or args.ed) is not None:
+        if args.ex is not None and (args.ef or args.ed) is not None:
             print("ERROR: You can't use --ex with --ef or --ed, you should use --ef and --ed or use only one of them",
                   file=sys.stderr)
             sys.exit(3)

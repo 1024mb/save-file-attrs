@@ -379,7 +379,7 @@ def collect_file_attrs(path, exclusions, origpath, relative, exclusions_file, ex
                 except KeyboardInterrupt:
                     print("Cancelling and exiting...")
             except Exception as e:
-                print(e)
+                print("\n %s \n" % e)
                 pass
     return file_attrs
 

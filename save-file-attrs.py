@@ -17,12 +17,15 @@ if platform.system() == "Windows":
 
 
 def collect_file_attrs(path, exclusions, origpath, relative, exclusions_file, exclusions_dir, no_print):
+
     curr_working_dir = re.escape(os.getcwd())
     current_system = platform.system()
+
     if relative is False and origpath == ".":
         dirs = os.walk(os.getcwd())
     else:
         dirs = os.walk(path)
+
     file_attrs = {}
     exclusions2 = []  # this is for exclusions that are full paths, so we can store the root directory
 
@@ -382,6 +385,7 @@ def collect_file_attrs(path, exclusions, origpath, relative, exclusions_file, ex
 
 
 def apply_file_attrs(attrs, no_print):
+
     proc = 0
     for path in sorted(attrs):
         attr = attrs[path]
@@ -573,14 +577,20 @@ def apply_file_attrs(attrs, no_print):
 
 
 def save_attrs(path_to_save, output, relative, exclusions, exclusions_file, exclusions_dir, no_print):
+
     if path_to_save.endswith('"'):
         path_to_save = path_to_save[:-1] + os.path.sep  # Windows escapes the quote if the command ends in \" so this
         # fixes that, or at least it does if this argument is the last one, otherwise the output argument will eat
         # all the next args
     if path_to_save.endswith(':'):
         path_to_save = path_to_save + os.path.sep
-    if not os.path.exists(path_to_save):
+    if os.path.exists(path_to_save) is False:
         print("\nERROR: The specified path:\n\n%s\n\nDoesn't exist, aborting..." % path_to_save, file=sys.stderr)
+        sys.exit(1)
+
+    has_drive = os.path.splitdrive(output)[0]
+    if has_drive != "" and os.path.exists(has_drive) is False:
+        print("\nERROR: The specified drive:\n\n%s\n\nDoesn't exist, aborting..." % output, file=sys.stderr)
         sys.exit(1)
 
     attr_file_name = output
@@ -592,10 +602,19 @@ def save_attrs(path_to_save, output, relative, exclusions, exclusions_file, excl
     if attr_file_name.endswith(':'):
         attr_file_name = attr_file_name + os.path.sep
 
-    if not os.path.dirname(attr_file_name) == "":  # if the root directory of attr_file_name is not an empty string
-        if not os.path.exists(
-                os.path.dirname(attr_file_name)):  # if the path of the root directory of attr_file_name doesn't exist
+    if os.path.dirname(attr_file_name) != "":  # if the root directory of attr_file_name is not an empty string
+        if os.path.isfile(os.path.dirname(attr_file_name)):
+            print("ERROR: The output directory name you specified is the same one of a file, a directory and a file "
+                  "with the same name can't exist within the same path, aborting...")
+            sys.exit(1)
+        if os.path.exists(os.path.dirname(attr_file_name)) is False:  # if the path of the root directory of
+            # attr_file_name doesn't exist
             os.makedirs(os.path.dirname(attr_file_name))  # create the path
+    else:
+        if os.path.isdir(os.path.join(os.getcwd(), attr_file_name)):
+            print("ERROR: The output filename you specified is the same one of a directory, a directory and a file "
+                  "with the same name can't exist within the same path, aborting...")
+            sys.exit(1)
 
     if os.path.basename(attr_file_name) == "":
         attr_file_name = os.path.join(attr_file_name, ".saved-file-attrs")
@@ -638,7 +657,9 @@ def save_attrs(path_to_save, output, relative, exclusions, exclusions_file, excl
 
 
 def restore_attrs(input_file, working_path, no_print):
+
     attr_file_name = input_file
+
     if attr_file_name.endswith('"'):
         attr_file_name = attr_file_name[:-1] + os.path.sep  # Windows escapes the quote if the command ends in \" so
         # this fixes that
@@ -647,6 +668,10 @@ def restore_attrs(input_file, working_path, no_print):
     if not os.path.exists(attr_file_name):
         print("ERROR: Saved attributes file \"%s\" not found" % attr_file_name, file=sys.stderr)
         sys.exit(1)
+    if os.path.isdir(attr_file_name):
+        print("ERROR: You have specified a directory for the input file, aborting...")
+        sys.exit(1)
+
     attr_file_size = os.path.getsize(attr_file_name)
 
     if attr_file_size == 0:
@@ -742,9 +767,6 @@ def main():
         restore_attrs(args.i, args.wp, args.np)
     elif args.mode is None:
         print("You have to use either save or restore.\nSee the help.")
-        sys.exit(3)
-    else:
-        print("Option not recognized...")
         sys.exit(3)
 
 

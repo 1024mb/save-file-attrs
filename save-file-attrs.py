@@ -602,6 +602,12 @@ def save_attrs(path_to_save, output, relative, exclusions, exclusions_file, excl
     if attr_file_name.endswith(':'):
         attr_file_name = attr_file_name + os.path.sep
 
+    if os.path.basename(attr_file_name) != "":
+        if os.path.isdir(attr_file_name):
+            print("ERROR: The output filename you specified is the same one of a directory, a directory and a file "
+                  "with the same name can't exist within the same path, aborting...")
+            sys.exit(1)
+
     if os.path.dirname(attr_file_name) != "":  # if the root directory of attr_file_name is not an empty string
         if os.path.isfile(os.path.dirname(attr_file_name)):
             print("ERROR: The output directory name you specified is the same one of a file, a directory and a file "

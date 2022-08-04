@@ -16,7 +16,7 @@ if platform.system() == "Windows":
     from win32_setctime import setctime
 
 
-def collect_file_attrs(path, exclusions, origpath, relative, exclusions_file, exclusions_dir):
+def collect_file_attrs(path, exclusions, origpath, relative, exclusions_file, exclusions_dir, no_print):
     curr_working_dir = re.escape(os.getcwd())
     current_system = platform.system()
     if relative is False and origpath == ".":
@@ -175,10 +175,11 @@ def collect_file_attrs(path, exclusions, origpath, relative, exclusions_file, ex
                             "uid": file_info.st_uid,
                             "gid": file_info.st_gid,
                         }
-                    elif origpath == os.curdir or relative:
-                        print("\"" + os.path.abspath(os.path.join(dirpath, file)) + "\" has been skipped.")
-                    else:
-                        print("\"" + os.path.join(dirpath, file) + "\" has been skipped.")
+                    elif no_print is False:
+                        if origpath == os.curdir or relative:
+                            print("\"" + os.path.abspath(os.path.join(dirpath, file)) + "\" has been skipped.")
+                        else:
+                            print("\"" + os.path.join(dirpath, file) + "\" has been skipped.")
                 if exclusions_file is not None and exclusions_dir is None:
                     if os.path.isfile(os.path.join(dirpath, file)):
                         if current_system == "Windows" and\
@@ -207,10 +208,11 @@ def collect_file_attrs(path, exclusions, origpath, relative, exclusions_file, ex
                                 "uid": file_info.st_uid,
                                 "gid": file_info.st_gid,
                             }
-                        elif origpath == os.curdir or relative:
-                            print("\"" + os.path.abspath(os.path.join(dirpath, file)) + "\" has been skipped.")
-                        else:
-                            print("\"" + os.path.join(dirpath, file) + "\" has been skipped.")
+                        elif no_print is False:
+                            if origpath == os.curdir or relative:
+                                print("\"" + os.path.abspath(os.path.join(dirpath, file)) + "\" has been skipped.")
+                            else:
+                                print("\"" + os.path.join(dirpath, file) + "\" has been skipped.")
                     else:
                         path = os.path.join(dirpath, file)
                         file_info = os.lstat(path)
@@ -250,10 +252,11 @@ def collect_file_attrs(path, exclusions, origpath, relative, exclusions_file, ex
                                 "uid": file_info.st_uid,
                                 "gid": file_info.st_gid,
                             }
-                        elif origpath == os.curdir or relative:
-                            print("\"" + os.path.abspath(os.path.join(dirpath, file)) + "\" has been skipped.")
-                        else:
-                            print("\"" + os.path.join(dirpath, file) + "\" has been skipped.")
+                        elif no_print is False:
+                            if origpath == os.curdir or relative:
+                                print("\"" + os.path.abspath(os.path.join(dirpath, file)) + "\" has been skipped.")
+                            else:
+                                print("\"" + os.path.join(dirpath, file) + "\" has been skipped.")
                     else:  # if is a file
                         if current_system == "Windows" and\
                                 re.search(".*(" + regex_excl_dirs + ".*" + re.escape(os.path.sep) + ").*",
@@ -281,10 +284,11 @@ def collect_file_attrs(path, exclusions, origpath, relative, exclusions_file, ex
                                 "uid": file_info.st_uid,
                                 "gid": file_info.st_gid,
                             }
-                        elif origpath == os.curdir or relative:
-                            print("\"" + os.path.abspath(os.path.join(dirpath, file)) + "\" has been skipped.")
-                        else:
-                            print("\"" + os.path.join(dirpath, file) + "\" has been skipped.")
+                        elif no_print is False:
+                            if origpath == os.curdir or relative:
+                                print("\"" + os.path.abspath(os.path.join(dirpath, file)) + "\" has been skipped.")
+                            else:
+                                print("\"" + os.path.join(dirpath, file) + "\" has been skipped.")
                 elif (exclusions_dir and exclusions_file) is not None:
                     if os.path.isdir(os.path.join(dirpath, file)):
                         if current_system == "Windows" and\
@@ -313,10 +317,11 @@ def collect_file_attrs(path, exclusions, origpath, relative, exclusions_file, ex
                                 "uid": file_info.st_uid,
                                 "gid": file_info.st_gid,
                             }
-                        elif origpath == os.curdir or relative:
-                            print("\"" + os.path.abspath(os.path.join(dirpath, file)) + "\" has been skipped.")
-                        else:
-                            print("\"" + os.path.join(dirpath, file) + "\" has been skipped.")
+                        elif no_print is False:
+                            if origpath == os.curdir or relative:
+                                print("\"" + os.path.abspath(os.path.join(dirpath, file)) + "\" has been skipped.")
+                            else:
+                                print("\"" + os.path.join(dirpath, file) + "\" has been skipped.")
                     else:
                         if current_system == "Windows" and\
                                 re.search(".*(" + regex_excl + ")([^" + re.escape(os.path.sep) + "]+$|$)",
@@ -348,10 +353,11 @@ def collect_file_attrs(path, exclusions, origpath, relative, exclusions_file, ex
                                     "uid": file_info.st_uid,
                                     "gid": file_info.st_gid,
                                 }
-                        elif origpath == os.curdir or relative:
-                            print("\"" + os.path.abspath(os.path.join(dirpath, file)) + "\" has been skipped.")
-                        else:
-                            print("\"" + os.path.join(dirpath, file) + "\" has been skipped.")
+                        elif no_print is False:
+                            if origpath == os.curdir or relative:
+                                print("\"" + os.path.abspath(os.path.join(dirpath, file)) + "\" has been skipped.")
+                            else:
+                                print("\"" + os.path.join(dirpath, file) + "\" has been skipped.")
                 elif (exclusions and exclusions_file and exclusions_dir) is None:
                     path = os.path.join(dirpath, file)
                     file_info = os.lstat(path)
@@ -375,7 +381,7 @@ def collect_file_attrs(path, exclusions, origpath, relative, exclusions_file, ex
     return file_attrs
 
 
-def apply_file_attrs(attrs):
+def apply_file_attrs(attrs, no_print):
     proc = 0
     for path in sorted(attrs):
         attr = attrs[path]
@@ -396,26 +402,30 @@ def apply_file_attrs(attrs):
 
                         if mode_changed:
                             if os.path.splitdrive(path)[0] == "":
-                                print("Updating permissions for \"%s\"" % os.path.abspath(path))
+                                if no_print is False:
+                                    print("Updating permissions for \"%s\"" % os.path.abspath(path))
                                 os.chmod(path, mode)
                                 proc = 1
                             else:
-                                print("Updating permissions for \"%s\"" % path)
+                                if no_print is False:
+                                    print("Updating permissions for \"%s\"" % path)
                                 os.chmod(path, mode)
                                 proc = 1
 
                         if mtime_changed or ctime_changed or atime_changed:
                             if os.path.splitdrive(path)[0] == "":
-                                print("Updating dates for \"%s\"" % os.path.abspath(path))
+                                if no_print is False:
+                                    print("Updating dates for \"%s\"" % os.path.abspath(path))
                                 os.utime(path, (atime, mtime))
                                 setctime(path, ctime)
                                 proc = 1
                             else:
-                                print("Updating dates for \"%s\"" % path)
+                                if no_print is False:
+                                    print("Updating dates for \"%s\"" % path)
                                 os.utime(path, (atime, mtime))
                                 setctime(path, ctime)
                                 proc = 1
-                    else:
+                    elif no_print is False:
                         if os.path.splitdrive(path)[0] == "":
                             print("Skipping symbolic link \"%s\"" % os.path.abspath(path))  # Can't make utime not
                             # follow symbolic links in Windows, so we skip them or else the attributes of the resolved
@@ -423,13 +433,13 @@ def apply_file_attrs(attrs):
                         else:
                             print("Skipping symbolic link \"%s\"" % path)  # Can't make utime not follow symbolic links
                             # in Windows, so we skip them or else the attributes of the resolved paths will be changed.
-                else:
+                elif no_print is False:
                     if os.path.splitdrive(path)[0] == "":
                         print("Skipping non-existent item \"%s\"" % os.path.abspath(path))
                     else:
                         print("Skipping non-existent item \"%s\"" % path)
             except OSError as Err:
-                print(Err)
+                print(Err, file=sys.stderr)
                 pass
         elif os.utime in os.supports_follow_symlinks:
             try:
@@ -449,40 +459,46 @@ def apply_file_attrs(attrs):
 
                     if uid_changed or gid_changed:
                         if os.path.splitdrive(path)[0] == "":
-                            print("Updating UID, GID for \"%s\"" % os.path.abspath(path))
+                            if no_print is False:
+                                print("Updating UID, GID for \"%s\"" % os.path.abspath(path))
                             os.chown(path, uid, gid, follow_symlinks=False)
                             proc = 1
                         else:
-                            print("Updating UID, GID for \"%s\"" % path)
+                            if no_print is False:
+                                print("Updating UID, GID for \"%s\"" % path)
                             os.chown(path, uid, gid, follow_symlinks=False)
                             proc = 1
 
                     if mode_changed:
                         if os.path.splitdrive(path)[0] == "":
-                            print("Updating permissions for \"%s\"" % os.path.abspath(path))
+                            if no_print is False:
+                                print("Updating permissions for \"%s\"" % os.path.abspath(path))
                             os.chmod(path, mode, follow_symlinks=False)
                             proc = 1
                         else:
-                            print("Updating permissions for \"%s\"" % path)
+                            if no_print is False:
+                                print("Updating permissions for \"%s\"" % path)
                             os.chmod(path, mode, follow_symlinks=False)
                             proc = 1
 
                     if mtime_changed or atime_changed:
                         if os.path.splitdrive(path)[0] == "":
-                            print("Updating mtime or atime for \"%s\"" % os.path.abspath(path))
+                            if no_print is False:
+                                print("Updating mtime or atime for \"%s\"" % os.path.abspath(path))
                             os.utime(path, (atime, mtime), follow_symlinks=False)
                             proc = 1
                         else:
-                            print("Updating mtime or atime for \"%s\"" % path)
+                            if no_print is False:
+                                print("Updating mtime or atime for \"%s\"" % path)
                             os.utime(path, (atime, mtime), follow_symlinks=False)
                             proc = 1
-                else:
+                elif no_print is False:
                     if os.path.splitdrive(path)[0] == "":
                         print("Skipping non-existent item \"%s\"" % os.path.abspath(path))
                     else:
                         print("Skipping non-existent item \"%s\"" % path)
             except OSError as Err:
-                print(Err)
+                print(Err, file=sys.stderr)
                 pass
         else:
             try:
@@ -503,41 +519,47 @@ def apply_file_attrs(attrs):
 
                         if uid_changed or gid_changed:
                             if os.path.splitdrive(path)[0] == "":
-                                print("Updating UID, GID for \"%s\"" % os.path.abspath(path))
+                                if no_print is False:
+                                    print("Updating UID, GID for \"%s\"" % os.path.abspath(path))
                                 os.chown(path, uid, gid)
                                 proc = 1
                             else:
-                                print("Updating UID, GID for \"%s\"" % path)
+                                if no_print is False:
+                                    print("Updating UID, GID for \"%s\"" % path)
                                 os.chown(path, uid, gid)
                                 proc = 1
 
                         if mode_changed:
                             if os.path.splitdrive(path)[0] == "":
-                                print("Updating permissions for \"%s\"" % os.path.abspath(path))
+                                if no_print is False:
+                                    print("Updating permissions for \"%s\"" % os.path.abspath(path))
                                 os.chmod(path, mode)
                                 proc = 1
                             else:
-                                print("Updating permissions for \"%s\"" % path)
+                                if no_print is False:
+                                    print("Updating permissions for \"%s\"" % path)
                                 os.chmod(path, mode)
                                 proc = 1
 
                         if mtime_changed or atime_changed:
                             if os.path.splitdrive(path)[0] == "":
-                                print("Updating mtime or atime for \"%s\"" % os.path.abspath(path))
+                                if no_print is False:
+                                    print("Updating mtime or atime for \"%s\"" % os.path.abspath(path))
                                 os.utime(path, (atime, mtime))
                                 proc = 1
                             else:
-                                print("Updating mtime or atime for \"%s\"" % path)
+                                if no_print is False:
+                                    print("Updating mtime or atime for \"%s\"" % path)
                                 os.utime(path, (atime, mtime))
                                 proc = 1
-                    else:
+                    elif no_print is False:
                         if os.path.splitdrive(path)[0] == "":
                             print("Skipping symbolic link \"%s\"" % os.path.abspath(path))  # Python doesn't support
                             # not following symlinks in this OS so we skip them
                         else:
                             print("Skipping symbolic link \"%s\"" % path)  # Python doesn't support  not following
                             # symlinks in this OS so we skip them
-                else:
+                elif no_print is False:
                     if os.path.splitdrive(path)[0] == "":
                         print("Skipping non-existent item \"%s\"" % os.path.abspath(path))
                     else:
@@ -550,7 +572,7 @@ def apply_file_attrs(attrs):
         sys.exit(0)
 
 
-def save_attrs(path_to_save, output, relative, exclusions, exclusions_file, exclusions_dir):
+def save_attrs(path_to_save, output, relative, exclusions, exclusions_file, exclusions_dir, no_print):
     if path_to_save.endswith('"'):
         path_to_save = path_to_save[:-1] + os.path.sep  # Windows escapes the quote if the command ends in \" so this
         # fixes that, or at least it does if this argument is the last one, otherwise the output argument will eat
@@ -594,9 +616,12 @@ def save_attrs(path_to_save, output, relative, exclusions, exclusions_file, excl
 
     try:
         attr_file = open(attr_file_name, "w", encoding="utf_8")
-        attrs = collect_file_attrs(path_to_save, exclusions, origpath, relative, exclusions_file, exclusions_dir)
+        attrs = collect_file_attrs(path_to_save, exclusions, origpath, relative, exclusions_file, exclusions_dir,
+                                   no_print)
         json.dump(attrs, attr_file, indent=2, ensure_ascii=False)
-        print("Attributes saved to " + attr_file_name)
+        if os.path.splitdrive(attr_file_name)[0] == "":
+            attr_file_name = os.path.join(os.getcwd(), attr_file_name)
+        print("Attributes saved to \"" + attr_file_name + "\"")
     except KeyboardInterrupt:
         if origdir in locals():
             os.chdir(origdir)
@@ -612,7 +637,7 @@ def save_attrs(path_to_save, output, relative, exclusions, exclusions_file, excl
         os.chdir(origdir)
 
 
-def restore_attrs(input_file, working_path):
+def restore_attrs(input_file, working_path, no_print):
     attr_file_name = input_file
     if attr_file_name.endswith('"'):
         attr_file_name = attr_file_name[:-1] + os.path.sep  # Windows escapes the quote if the command ends in \" so
@@ -635,12 +660,12 @@ def restore_attrs(input_file, working_path):
             sys.exit(1)
         if working_path != os.curdir:
             os.chdir(working_path)
-        apply_file_attrs(attrs)
+        apply_file_attrs(attrs, no_print)
     except KeyboardInterrupt:
         print("Shutdown requested... exiting", file=sys.stderr)
         sys.exit(1)
     except OSError as ERR_R:
-        print("ERROR: There was an error reading the attribute file, no date has been changed.\n\n", ERR_R, "\n",
+        print("ERROR: There was an error reading the attribute file, no attribute has been changed.\n\n", ERR_R, "\n",
               file=sys.stderr)
         sys.exit(1)
 
@@ -653,39 +678,43 @@ def main():
     save_parser = subparsers.add_parser(
         "save", help="Save the attributes of files and folders in a directory tree"
     )
-    save_parser.add_argument("--o", "-o", help="Set the output file (Optional, "
+    save_parser.add_argument("-o", "--o", help="Set the output file (Optional, "
                                                "default is \".saved-file-attrs\" in current dir)",
                              metavar="%OUTPUT%", default=".saved-file-attrs", nargs="?")
-    save_parser.add_argument("--p", "-p", help="Set the path to store attributes from (Optional, "
+    save_parser.add_argument("-p", "--p", help="Set the path to store attributes from (Optional, "
                                                "default is current path)",
                              metavar="%PATH%", default=os.curdir, nargs="?")
-    save_parser.add_argument("--r", "-r", help="Store the paths as relative instead of full (Optional)",
-                             action="store_true")
-    save_parser.add_argument("--ex", "-ex", help="Match these strings indiscriminately and exclude them, program will "
+    save_parser.add_argument("-ex", "--ex", help="Match these strings indiscriminately and exclude them, program will "
                                                  "exclude anything that includes these strings in their paths unless a "
                                                  "full path is specified in which case it will be considered a "
                                                  "directory and everything inside will be excluded. (Optional)",
                              metavar="%NAME%", nargs="*")
-    save_parser.add_argument("--ef", "-ef", help="Match all the paths that incorporates these strings and exclude "
+    save_parser.add_argument("-ef", "--ef", help="Match all the paths that incorporates these strings and exclude "
                                                  "them, strings are considered filenames unless a full path is given "
                                                  "in which case only that file will be excluded. If the argument is "
                                                  "given without any value, all the files will be excluded. (Optional)",
                              metavar="%FILE%", nargs="*")
-    save_parser.add_argument("--ed", "-ed", help="Match all the paths that incorporates these strings and exclude "
+    save_parser.add_argument("-ed", "--ed", help="Match all the paths that incorporates these strings and exclude "
                                                  "them, strings are considered directories unless a full path is "
                                                  "given in which case it will exclude all the sub directories and "
                                                  "files inside that directory. (Optional)",
                              metavar="%DIRECTORY%", nargs="*")
+    save_parser.add_argument("-r", "--r", help="Store the paths as relative instead of full (Optional)",
+                             action="store_true")
+    save_parser.add_argument("-np", "--np", help="Don't print excluded files and folders (Optional)",
+                             action="store_true")
     restore_parser = subparsers.add_parser(
         "restore", help="Restore saved file and folder attributes"
     )
-    restore_parser.add_argument("--i", "-i", help="Set the input file containing the attributes to restore (Optional, "
+    restore_parser.add_argument("-i", "--i", help="Set the input file containing the attributes to restore (Optional, "
                                                   "default is \".saved-file-attrs\" in current dir)",
                                 metavar="%INPUT%", default=".saved-file-attrs", nargs="?")
-    restore_parser.add_argument("--wp", "-wp", help="Set the working path, the attributes will be applied to the "
+    restore_parser.add_argument("-wp", "--wp", help="Set the working path, the attributes will be applied to the "
                                                     "contents of this path (Optional, default is the current "
                                                     "directory)",
                                 metavar="%PATH%", default=os.curdir, nargs="?")
+    restore_parser.add_argument("-np", "--np", help="Don't print modified or skipped files and folders (Optional)",
+                                action="store_true")
     args = parser.parse_args()
 
     if args.mode == "save":
@@ -708,9 +737,9 @@ def main():
         if args.ef is not None:
             if len(args.ef) == 0 or "" in args.ef:
                 print("\nWARNING: You have used an empty value for file exclusions, every file will be excluded.\n")
-        save_attrs(args.p, args.o, args.r, args.ex, args.ef, args.ed)
+        save_attrs(args.p, args.o, args.r, args.ex, args.ef, args.ed, args.np)
     elif args.mode == "restore":
-        restore_attrs(args.i, args.wp)
+        restore_attrs(args.i, args.wp, args.np)
     elif args.mode is None:
         print("You have to use either save or restore.\nSee the help.")
         sys.exit(3)

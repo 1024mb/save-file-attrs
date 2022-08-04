@@ -10,42 +10,44 @@ Based on work by [Robert Knight][1]
 ## Save: 
 
 ```
-usage: save-file-attrs.py save [-h] [--o [%OUTPUT%]] [--p [%PATH%]] [--r] [--ex [%NAME% ...]] [--ef [%FILE% ...]] [--ed [%DIRECTORY% ...]]
+usage: save-file-attrs.py save [-h] [-o [%OUTPUT%]] [-p [%PATH%]] [-ex [%NAME% ...]] [-ef [%FILE% ...]] [-ed [%DIRECTORY% ...]] [-r] [-np]
 
 options:
   -h, --help            show this help message and exit
-  --o [%OUTPUT%], -o [%OUTPUT%]
+  -o [%OUTPUT%], --o [%OUTPUT%]
                         Set the output file (Optional, default is ".saved-file-attrs" in current dir)
-  --p [%PATH%], -p [%PATH%]
+  -p [%PATH%], --p [%PATH%]
                         Set the path to store attributes from (Optional, default is current path)
-  --r, -r               Store the paths as relative instead of full (Optional)
-  --ex [%NAME% ...], -ex [%NAME% ...]
+  -ex [%NAME% ...], --ex [%NAME% ...]
                         Match these strings indiscriminately and exclude them, program will exclude anything that
                         includes these strings in their paths unless a full path is specified in which case it will be
                         considered a directory and everything inside will be excluded. (Optional)
-  --ef [%FILE% ...], -ef [%FILE% ...]
+  -ef [%FILE% ...], --ef [%FILE% ...]
                         Match all the paths that incorporates these strings and exclude them, strings are considered
                         filenames unless a full path is given in which case only that file will be excluded. If the
                         argument is given without any value, all the files will be excluded. (Optional)
-  --ed [%DIRECTORY% ...], -ed [%DIRECTORY% ...]
+  -ed [%DIRECTORY% ...], --ed [%DIRECTORY% ...]
                         Match all the paths that incorporates these strings and exclude them, strings are considered
-                        directories unless a full path is given in which case it will exclude all the subdirs and
-                        files inside that directory. (Optional)
+                        directories unless a full path is given in which case it will exclude all the sub directories
+                        and files inside that directory. (Optional)
+  -r, --r               Store the paths as relative instead of full (Optional)
+  -np, --np             Don't print excluded files and folders (Optional)
 ```
 
 ## Restore:
 
 ```
-usage: save-file-attrs.py restore [-h] [--i [%INPUT%]] [--wp [%PATH%]]
+usage: save-file-attrs.py restore [-h] [-i [%INPUT%]] [-wp [%PATH%]] [-np]
 
 options:
   -h, --help            show this help message and exit
-  --i [%INPUT%], -i [%INPUT%]
+  -i [%INPUT%], --i [%INPUT%]
                         Set the input file containing the attributes to restore (Optional, default is ".saved-file-
                         attrs" in current dir)
-  --wp [%PATH%], -wp [%PATH%]
+  -wp [%PATH%], --wp [%PATH%]
                         Set the working path, the attributes will be applied to the contents of this path (Optional,
                         default is the current directory)
+  -np, --np             Don't print modified or skipped files and folders (Optional)
 ```
 ###
 Exclusions need more testing, it currently works like this:

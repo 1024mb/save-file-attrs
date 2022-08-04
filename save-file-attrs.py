@@ -16,7 +16,9 @@ if platform.system() == "Windows":
     from win32_setctime import setctime
 
 
-def collect_file_attrs(path, exclusions, origpath, relative, exclusionsfile, exclusionsdir):
+def collect_file_attrs(path, exclusions, origpath, relative, exclusions_file, exclusions_dir):
+    curr_working_dir = re.escape(os.getcwd())
+    current_system = platform.system()
     if relative is False and origpath == ".":
         dirs = os.walk(os.getcwd())
     else:
@@ -25,42 +27,40 @@ def collect_file_attrs(path, exclusions, origpath, relative, exclusionsfile, exc
     exclusions2 = []  # this is for exclusions that are full paths, so we can store the root directory
 
     # exclusions setup start
+    replacedpath = None  # so I don't get annoyed by the IDE
     if origpath != os.curdir:  # this doesn't indicate whether relative has been set because this also applies if -p
         # hasn't been used
         replacedpath = re.escape(origpath)  # path ready for regex
     if relative is False:  # all paths will be saved as full
         if exclusions is not None:
             if origpath != os.curdir:  # if origpath has a value other than .
-                if platform.system() == "Windows":
-                    for i, s in enumerate(exclusions):
-                        if s.startswith(os.curdir + os.path.sep):
-                            r = os.path.normpath(os.path.join(origpath, s))
-                            exclusions[i] = re.escape(r)
-                        elif re.match(replacedpath, s, flags=re.IGNORECASE) is not None:
-                            r = s + os.path.sep  # adding a slash to the end of the path because the string is a
-                            # directory, or at least that's how we consider it always when using --ex
-                            exclusions[i] = re.escape(s)
-                            exclusions2.append(r)
-                        else:
-                            exclusions[i] = re.escape(s)
-                else:
-                    for i, s in enumerate(exclusions):
-                        if s.startswith(os.curdir + os.path.sep):
-                            r = os.path.normpath(os.path.join(origpath, s))
-                            exclusions[i] = re.escape(r)
-                        elif s.startswith(origpath) is True:
-                            r = s + os.path.sep  # adding a slash to the end of the path because the string is a
-                            # directory, or at least that's how we consider it always when using --ex
-                            exclusions[i] = re.escape(s)
-                            exclusions2.append(r)
-                        else:
-                            exclusions[i] = re.escape(s)
+                for i, s in enumerate(exclusions):
+                    if s.startswith(os.curdir + os.path.sep):
+                        r = os.path.normpath(os.path.join(origpath, s))
+                        exclusions[i] = re.escape(r)
+                    elif current_system == "Windows" and re.match(replacedpath, s, flags=re.IGNORECASE) is not None:
+                        r = s + os.path.sep  # adding a slash to the end of the path because the string is a
+                        # directory, or at least that's how we consider it always when using --ex
+                        exclusions[i] = re.escape(s)
+                        exclusions2.append(r)
+                    elif current_system != "Windows" and s.startswith(origpath):
+                        r = s + os.path.sep  # adding a slash to the end of the path because the string is a
+                        # directory, or at least that's how we consider it always when using --ex
+                        exclusions[i] = re.escape(s)
+                        exclusions2.append(r)
+                    else:
+                        exclusions[i] = re.escape(s)
             else:  # if is os.curdir
                 for i, s in enumerate(exclusions):
                     if s.startswith(os.curdir + os.path.sep):
                         r = os.path.abspath(s)
                         exclusions[i] = re.escape(r)
-                    elif s.startswith(os.getcwd()) is True:
+                    elif current_system == "Windows" and re.match(curr_working_dir, s, flags=re.IGNORECASE) is not None:
+                        r = s + os.path.sep  # adding a slash to the end of the path because the string is a
+                        # directory, or at least that's how we consider it always when using --ex
+                        exclusions[i] = re.escape(s)
+                        exclusions2.append(re.escape(r))
+                    elif current_system != "Windows" and s.startswith(curr_working_dir):
                         r = s + os.path.sep  # adding a slash to the end of the path because the string is a
                         # directory, or at least that's how we consider it always when using --ex
                         exclusions[i] = re.escape(s)
@@ -71,44 +71,44 @@ def collect_file_attrs(path, exclusions, origpath, relative, exclusionsfile, exc
                 regex_excl = "|".join(exclusions) + "|" + "|".join(exclusions2)
             else:
                 regex_excl = "|".join(exclusions)
-        if exclusionsfile is not None:
+        if exclusions_file is not None:
             if origpath != os.curdir:
-                for i, s in enumerate(exclusionsfile):
+                for i, s in enumerate(exclusions_file):
                     a = os.path.splitdrive(s)
                     if s.startswith(os.curdir + os.path.sep):
                         r = os.path.normpath(os.path.join(origpath, s))
-                        exclusionsfile[i] = re.escape(r)
+                        exclusions_file[i] = re.escape(r)
                     elif a[0] != "":
-                        exclusionsfile[i] = "^" + re.escape(s) + "$"
+                        exclusions_file[i] = "^" + re.escape(s) + "$"
                     else:
-                        exclusionsfile[i] = re.escape(s)
+                        exclusions_file[i] = re.escape(s)
             else:
-                for i, s in enumerate(exclusionsfile):
+                for i, s in enumerate(exclusions_file):
                     a = os.path.splitdrive(s)
                     if s.startswith(os.curdir + os.path.sep):
                         r = os.path.abspath(s)
-                        exclusionsfile[i] = re.escape(r)
+                        exclusions_file[i] = re.escape(r)
                     elif a[0] != "":
-                        exclusionsfile[i] = "^" + re.escape(s) + "$"
+                        exclusions_file[i] = "^" + re.escape(s) + "$"
                     else:
-                        exclusionsfile[i] = re.escape(s)
-            regex_excl = "|".join(exclusionsfile)
-        if exclusionsdir is not None:
+                        exclusions_file[i] = re.escape(s)
+            regex_excl = "|".join(exclusions_file)
+        if exclusions_dir is not None:
             if origpath != os.curdir:
-                for i, s in enumerate(exclusionsdir):
+                for i, s in enumerate(exclusions_dir):
                     if s.startswith(os.curdir + os.path.sep):
                         r = os.path.normpath(os.path.join(origpath, s))
-                        exclusionsdir[i] = re.escape(r)
+                        exclusions_dir[i] = re.escape(r)
                     else:
-                        exclusionsdir[i] = re.escape(s)
+                        exclusions_dir[i] = re.escape(s)
             else:
-                for i, s in enumerate(exclusionsdir):
+                for i, s in enumerate(exclusions_dir):
                     if s.startswith(os.curdir + os.path.sep):
                         r = os.path.abspath(s)
-                        exclusionsdir[i] = re.escape(r)
+                        exclusions_dir[i] = re.escape(r)
                     else:
-                        exclusionsdir[i] = re.escape(s)
-            regex_excl_dirs = "|".join(exclusionsdir)
+                        exclusions_dir[i] = re.escape(s)
+            regex_excl_dirs = "|".join(exclusions_dir)
     else:  # if relative is true
         if exclusions is not None:
             for i, s in enumerate(exclusions):
@@ -121,38 +121,82 @@ def collect_file_attrs(path, exclusions, origpath, relative, exclusionsfile, exc
                 else:
                     exclusions[i] = re.escape(s)
             regex_excl = "|".join(exclusions)
-        if exclusionsfile is not None:
-            for i, s in enumerate(exclusionsfile):
+        if exclusions_file is not None:
+            for i, s in enumerate(exclusions_file):
                 a = os.path.splitdrive(s)
                 if s.startswith(os.path.sep) or s.startswith(os.curdir + os.path.sep):
-                    exclusionsfile[i] = re.escape(s)
+                    exclusions_file[i] = re.escape(s)
                 elif a[0] != "":
                     r = os.path.relpath(s)
-                    exclusionsfile[i] = "^" + re.escape(r) + "$"
+                    exclusions_file[i] = "^" + re.escape(r) + "$"
                 else:
-                    exclusionsfile[i] = re.escape(s)
-            regex_excl = "|".join(exclusionsfile)
-        if exclusionsdir is not None:
-            for i, s in enumerate(exclusionsdir):
+                    exclusions_file[i] = re.escape(s)
+            regex_excl = "|".join(exclusions_file)
+        if exclusions_dir is not None:
+            for i, s in enumerate(exclusions_dir):
                 a = os.path.splitdrive(s)
                 if s.startswith(os.path.sep) or s.startswith(os.curdir + os.path.sep):
-                    exclusionsdir[i] = re.escape(s)
+                    exclusions_dir[i] = re.escape(s)
                 elif a[0] != "":
                     r = os.path.relpath(s)
-                    exclusionsfile[i] = "^" + re.escape(r)
+                    exclusions_file[i] = "^" + re.escape(r)
                 else:
-                    exclusionsdir[i] = re.escape(s)
-            regex_excl_dirs = "|".join(exclusionsdir)
+                    exclusions_dir[i] = re.escape(s)
+            regex_excl_dirs = "|".join(exclusions_dir)
     #  exclusions setup end
 
     for (dirpath, dirnames, filenames) in dirs:
         files = dirnames + filenames
         for file in files:
             try:
-                if platform.system() == "Windows":  # Windows is a case-insensitive OS so adding the re.IGNORECASE flag
-                    if exclusions is not None:
-                        if re.search(".*(" + regex_excl + ").*", os.path.join(dirpath, file),
-                                     flags=re.IGNORECASE) is None:
+                if exclusions is not None:
+                    if current_system == "Windows" and\
+                            re.search(".*(" + regex_excl + ").*", os.path.join(dirpath, file),
+                                      flags=re.IGNORECASE) is None:
+                        path = os.path.join(dirpath, file)
+                        file_info = os.lstat(path)
+                        file_attrs[path] = {
+                            "mode": file_info.st_mode,
+                            "ctime": file_info.st_ctime,
+                            "mtime": file_info.st_mtime,
+                            "atime": file_info.st_atime,
+                            "uid": file_info.st_uid,
+                            "gid": file_info.st_gid,
+                        }
+                    elif current_system != "Windows" and\
+                            re.search(".*(" + regex_excl + ").*", os.path.join(dirpath, file)) is None:
+                        path = os.path.join(dirpath, file)
+                        file_info = os.lstat(path)
+                        file_attrs[path] = {
+                            "mode": file_info.st_mode,
+                            "ctime": file_info.st_ctime,
+                            "mtime": file_info.st_mtime,
+                            "atime": file_info.st_atime,
+                            "uid": file_info.st_uid,
+                            "gid": file_info.st_gid,
+                        }
+                    elif origpath == os.curdir or relative:
+                        print("\"" + os.path.abspath(os.path.join(dirpath, file)) + "\" has been skipped.")
+                    else:
+                        print("\"" + os.path.join(dirpath, file) + "\" has been skipped.")
+                if exclusions_file is not None and exclusions_dir is None:
+                    if os.path.isfile(os.path.join(dirpath, file)):
+                        if current_system == "Windows" and\
+                                re.search(".*(" + regex_excl + ")([^" + re.escape(os.path.sep) + "]+$|$)",
+                                          os.path.join(dirpath, file), flags=re.IGNORECASE) is None:
+                            path = os.path.join(dirpath, file)
+                            file_info = os.lstat(path)
+                            file_attrs[path] = {
+                                "mode": file_info.st_mode,
+                                "ctime": file_info.st_ctime,
+                                "mtime": file_info.st_mtime,
+                                "atime": file_info.st_atime,
+                                "uid": file_info.st_uid,
+                                "gid": file_info.st_gid,
+                            }
+                        elif current_system != "Windows" and\
+                                re.search(".*(" + regex_excl + ")([^" + re.escape(os.path.sep) + "]+$|$)",
+                                          os.path.join(dirpath, file)) is None:
                             path = os.path.join(dirpath, file)
                             file_info = os.lstat(path)
                             file_attrs[path] = {
@@ -167,112 +211,7 @@ def collect_file_attrs(path, exclusions, origpath, relative, exclusionsfile, exc
                             print("\"" + os.path.abspath(os.path.join(dirpath, file)) + "\" has been skipped.")
                         else:
                             print("\"" + os.path.join(dirpath, file) + "\" has been skipped.")
-                    if exclusionsfile is not None and exclusionsdir is None:
-                        if os.path.isfile(os.path.join(dirpath, file)):
-                            if re.search(".*(" + regex_excl + ")([^" + re.escape(os.path.sep) + "]+$|$)",
-                                         os.path.join(dirpath, file), flags=re.IGNORECASE) is None:
-                                path = os.path.join(dirpath, file)
-                                file_info = os.lstat(path)
-                                file_attrs[path] = {
-                                    "mode": file_info.st_mode,
-                                    "ctime": file_info.st_ctime,
-                                    "mtime": file_info.st_mtime,
-                                    "atime": file_info.st_atime,
-                                    "uid": file_info.st_uid,
-                                    "gid": file_info.st_gid,
-                                }
-                            elif origpath == os.curdir or relative:
-                                print("\"" + os.path.abspath(os.path.join(dirpath, file)) + "\" has been skipped.")
-                            else:
-                                print("\"" + os.path.join(dirpath, file) + "\" has been skipped.")
-                        else:
-                            path = os.path.join(dirpath, file)
-                            file_info = os.lstat(path)
-                            file_attrs[path] = {
-                                "mode": file_info.st_mode,
-                                "ctime": file_info.st_ctime,
-                                "mtime": file_info.st_mtime,
-                                "atime": file_info.st_atime,
-                                "uid": file_info.st_uid,
-                                "gid": file_info.st_gid,
-                            }
-                    elif exclusionsdir is not None and exclusionsfile is None:
-                        if os.path.isdir(os.path.join(dirpath, file)):
-                            if re.search(".*(" + regex_excl_dirs + ")" + "(.*" + re.escape(os.path.sep) + "*.+|$)",
-                                         os.path.join(dirpath, file), flags=re.IGNORECASE) is None:
-                                path = os.path.join(dirpath, file)
-                                file_info = os.lstat(path)
-                                file_attrs[path] = {
-                                    "mode": file_info.st_mode,
-                                    "ctime": file_info.st_ctime,
-                                    "mtime": file_info.st_mtime,
-                                    "atime": file_info.st_atime,
-                                    "uid": file_info.st_uid,
-                                    "gid": file_info.st_gid,
-                                }
-                            elif origpath == os.curdir or relative:
-                                print("\"" + os.path.abspath(os.path.join(dirpath, file)) + "\" has been skipped.")
-                            else:
-                                print("\"" + os.path.join(dirpath, file) + "\" has been skipped.")
-                        else:
-                            if re.search(".*(" + regex_excl_dirs + ".*" + re.escape(os.path.sep) + ").*",
-                                         os.path.join(dirpath, file), flags=re.IGNORECASE) is None:
-                                path = os.path.join(dirpath, file)
-                                file_info = os.lstat(path)
-                                file_attrs[path] = {
-                                    "mode": file_info.st_mode,
-                                    "ctime": file_info.st_ctime,
-                                    "mtime": file_info.st_mtime,
-                                    "atime": file_info.st_atime,
-                                    "uid": file_info.st_uid,
-                                    "gid": file_info.st_gid,
-                                }
-                            elif origpath == os.curdir or relative:
-                                print("\"" + os.path.abspath(os.path.join(dirpath, file)) + "\" has been skipped.")
-                            else:
-                                print("\"" + os.path.join(dirpath, file) + "\" has been skipped.")
-                    elif (exclusionsdir and exclusionsfile) is not None:
-                        if os.path.isdir(os.path.join(dirpath, file)):
-                            if re.search(".*(" + regex_excl_dirs + ")" + "(.*" + re.escape(os.path.sep) + "*.+|$)",
-                                         os.path.join(dirpath, file), flags=re.IGNORECASE) is None:
-                                path = os.path.join(dirpath, file)
-                                file_info = os.lstat(path)
-                                file_attrs[path] = {
-                                    "mode": file_info.st_mode,
-                                    "ctime": file_info.st_ctime,
-                                    "mtime": file_info.st_mtime,
-                                    "atime": file_info.st_atime,
-                                    "uid": file_info.st_uid,
-                                    "gid": file_info.st_gid,
-                                }
-                            elif origpath == os.curdir or relative:
-                                print("\"" + os.path.abspath(os.path.join(dirpath, file)) + "\" has been skipped.")
-                            else:
-                                print("\"" + os.path.join(dirpath, file) + "\" has been skipped.")
-                        else:
-                            if re.search(".*(" + regex_excl + ")([^" + re.escape(os.path.sep) + "]+$|$)",
-                                         os.path.join(dirpath, file), flags=re.IGNORECASE) is None:
-                                if re.search(".*(" + regex_excl_dirs + ".*" + re.escape(os.path.sep) + ").*",
-                                             os.path.join(dirpath, file), flags=re.IGNORECASE) is None:
-                                    path = os.path.join(dirpath, file)
-                                    file_info = os.lstat(path)
-                                    file_attrs[path] = {
-                                        "mode": file_info.st_mode,
-                                        "ctime": file_info.st_ctime,
-                                        "mtime": file_info.st_mtime,
-                                        "atime": file_info.st_atime,
-                                        "uid": file_info.st_uid,
-                                        "gid": file_info.st_gid,
-                                    }
-                                elif origpath == os.curdir or relative:
-                                    print("\"" + os.path.abspath(os.path.join(dirpath, file)) + "\" has been skipped.")
-                                else:
-                                    print("\"" + os.path.join(dirpath, file) + "\" has been skipped.")
-                            elif origpath == os.curdir or relative:
-                                print("\"" + os.path.abspath(os.path.join(dirpath, file)) + "\" has been skipped.")
-                            else:
-                                print("\"" + os.path.join(dirpath, file) + "\" has been skipped.")
-                    elif (exclusions and exclusionsfile and exclusionsdir) is None:
+                    else:
                         path = os.path.join(dirpath, file)
                         file_info = os.lstat(path)
                         file_attrs[path] = {
@@ -283,9 +222,24 @@ def collect_file_attrs(path, exclusions, origpath, relative, exclusionsfile, exc
                             "uid": file_info.st_uid,
                             "gid": file_info.st_gid,
                         }
-                else:  # if platform is not Windows we are assuming is a case-sensitive OS
-                    if exclusions is not None:
-                        if re.search(".*(" + regex_excl + ").*", os.path.join(dirpath, file)) is None:
+                elif exclusions_dir is not None and exclusions_file is None:
+                    if os.path.isdir(os.path.join(dirpath, file)):
+                        if current_system == "Windows" and\
+                                re.search(".*(" + regex_excl_dirs + ")" + "(.*" + re.escape(os.path.sep) + "*.+|$)",
+                                          os.path.join(dirpath, file), flags=re.IGNORECASE) is None:
+                            path = os.path.join(dirpath, file)
+                            file_info = os.lstat(path)
+                            file_attrs[path] = {
+                                "mode": file_info.st_mode,
+                                "ctime": file_info.st_ctime,
+                                "mtime": file_info.st_mtime,
+                                "atime": file_info.st_atime,
+                                "uid": file_info.st_uid,
+                                "gid": file_info.st_gid,
+                            }
+                        elif current_system != "Windows" and\
+                                re.search(".*(" + regex_excl_dirs + ")" + "(.*" + re.escape(os.path.sep) + "*.+|$)",
+                                          os.path.join(dirpath, file)) is None:
                             path = os.path.join(dirpath, file)
                             file_info = os.lstat(path)
                             file_attrs[path] = {
@@ -300,25 +254,10 @@ def collect_file_attrs(path, exclusions, origpath, relative, exclusionsfile, exc
                             print("\"" + os.path.abspath(os.path.join(dirpath, file)) + "\" has been skipped.")
                         else:
                             print("\"" + os.path.join(dirpath, file) + "\" has been skipped.")
-                    if exclusionsfile is not None and exclusionsdir is None:
-                        if os.path.isfile(os.path.join(dirpath, file)):
-                            if re.search(".*(" + regex_excl + ")([^" + re.escape(os.path.sep) + "]+$|$)",
-                                         os.path.join(dirpath, file)) is None:
-                                path = os.path.join(dirpath, file)
-                                file_info = os.lstat(path)
-                                file_attrs[path] = {
-                                    "mode": file_info.st_mode,
-                                    "ctime": file_info.st_ctime,
-                                    "mtime": file_info.st_mtime,
-                                    "atime": file_info.st_atime,
-                                    "uid": file_info.st_uid,
-                                    "gid": file_info.st_gid,
-                                }
-                            elif origpath == os.curdir or relative:
-                                print("\"" + os.path.abspath(os.path.join(dirpath, file)) + "\" has been skipped.")
-                            else:
-                                print("\"" + os.path.join(dirpath, file) + "\" has been skipped.")
-                        else:
+                    else:  # if is a file
+                        if current_system == "Windows" and\
+                                re.search(".*(" + regex_excl_dirs + ".*" + re.escape(os.path.sep) + ").*",
+                                          os.path.join(dirpath, file), flags=re.IGNORECASE) is None:
                             path = os.path.join(dirpath, file)
                             file_info = os.lstat(path)
                             file_attrs[path] = {
@@ -329,10 +268,61 @@ def collect_file_attrs(path, exclusions, origpath, relative, exclusionsfile, exc
                                 "uid": file_info.st_uid,
                                 "gid": file_info.st_gid,
                             }
-                    elif exclusionsdir is not None and exclusionsfile is None:
-                        if os.path.isdir(os.path.join(dirpath, file)):
-                            if re.search(".*(" + regex_excl_dirs + ")" + "(.*" + re.escape(os.path.sep) + "*.+|$)",
-                                         os.path.join(dirpath, file)) is None:
+                        elif current_system != "Windows" and\
+                                re.search(".*(" + regex_excl_dirs + ".*" + re.escape(os.path.sep) + ").*",
+                                          os.path.join(dirpath, file)) is None:
+                            path = os.path.join(dirpath, file)
+                            file_info = os.lstat(path)
+                            file_attrs[path] = {
+                                "mode": file_info.st_mode,
+                                "ctime": file_info.st_ctime,
+                                "mtime": file_info.st_mtime,
+                                "atime": file_info.st_atime,
+                                "uid": file_info.st_uid,
+                                "gid": file_info.st_gid,
+                            }
+                        elif origpath == os.curdir or relative:
+                            print("\"" + os.path.abspath(os.path.join(dirpath, file)) + "\" has been skipped.")
+                        else:
+                            print("\"" + os.path.join(dirpath, file) + "\" has been skipped.")
+                elif (exclusions_dir and exclusions_file) is not None:
+                    if os.path.isdir(os.path.join(dirpath, file)):
+                        if current_system == "Windows" and\
+                                re.search(".*(" + regex_excl_dirs + ")" + "(.*" + re.escape(os.path.sep) + "*.+|$)",
+                                          os.path.join(dirpath, file), flags=re.IGNORECASE) is None:
+                            path = os.path.join(dirpath, file)
+                            file_info = os.lstat(path)
+                            file_attrs[path] = {
+                                "mode": file_info.st_mode,
+                                "ctime": file_info.st_ctime,
+                                "mtime": file_info.st_mtime,
+                                "atime": file_info.st_atime,
+                                "uid": file_info.st_uid,
+                                "gid": file_info.st_gid,
+                            }
+                        elif current_system != "Windows" and\
+                                re.search(".*(" + regex_excl_dirs + ")" + "(.*" + re.escape(os.path.sep) + "*.+|$)",
+                                          os.path.join(dirpath, file)) is None:
+                            path = os.path.join(dirpath, file)
+                            file_info = os.lstat(path)
+                            file_attrs[path] = {
+                                "mode": file_info.st_mode,
+                                "ctime": file_info.st_ctime,
+                                "mtime": file_info.st_mtime,
+                                "atime": file_info.st_atime,
+                                "uid": file_info.st_uid,
+                                "gid": file_info.st_gid,
+                            }
+                        elif origpath == os.curdir or relative:
+                            print("\"" + os.path.abspath(os.path.join(dirpath, file)) + "\" has been skipped.")
+                        else:
+                            print("\"" + os.path.join(dirpath, file) + "\" has been skipped.")
+                    else:
+                        if current_system == "Windows" and\
+                                re.search(".*(" + regex_excl + ")([^" + re.escape(os.path.sep) + "]+$|$)",
+                                          os.path.join(dirpath, file), flags=re.IGNORECASE) is None:
+                            if re.search(".*(" + regex_excl_dirs + ".*" + re.escape(os.path.sep) + ").*",
+                                         os.path.join(dirpath, file), flags=re.IGNORECASE) is None:
                                 path = os.path.join(dirpath, file)
                                 file_info = os.lstat(path)
                                 file_attrs[path] = {
@@ -343,11 +333,9 @@ def collect_file_attrs(path, exclusions, origpath, relative, exclusionsfile, exc
                                     "uid": file_info.st_uid,
                                     "gid": file_info.st_gid,
                                 }
-                            elif origpath == os.curdir or relative:
-                                print("\"" + os.path.abspath(os.path.join(dirpath, file)) + "\" has been skipped.")
-                            else:
-                                print("\"" + os.path.join(dirpath, file) + "\" has been skipped.")
-                        else:
+                        elif current_system != "Windows" and\
+                                re.search(".*(" + regex_excl + ")([^" + re.escape(os.path.sep) + "]+$|$)",
+                                          os.path.join(dirpath, file)) is None:
                             if re.search(".*(" + regex_excl_dirs + ".*" + re.escape(os.path.sep) + ").*",
                                          os.path.join(dirpath, file)) is None:
                                 path = os.path.join(dirpath, file)
@@ -360,68 +348,27 @@ def collect_file_attrs(path, exclusions, origpath, relative, exclusionsfile, exc
                                     "uid": file_info.st_uid,
                                     "gid": file_info.st_gid,
                                 }
-                            elif origpath == os.curdir or relative:
-                                print("\"" + os.path.abspath(os.path.join(dirpath, file)) + "\" has been skipped.")
-                            else:
-                                print("\"" + os.path.join(dirpath, file) + "\" has been skipped.")
-                    elif (exclusionsdir and exclusionsfile) is not None:
-                        if os.path.isdir(os.path.join(dirpath, file)):
-                            if re.search(".*(" + regex_excl_dirs + ")" + "(.*" + re.escape(os.path.sep) + "*.+|$)",
-                                         os.path.join(dirpath, file)) is None:
-                                path = os.path.join(dirpath, file)
-                                file_info = os.lstat(path)
-                                file_attrs[path] = {
-                                    "mode": file_info.st_mode,
-                                    "ctime": file_info.st_ctime,
-                                    "mtime": file_info.st_mtime,
-                                    "atime": file_info.st_atime,
-                                    "uid": file_info.st_uid,
-                                    "gid": file_info.st_gid,
-                                }
-                            elif origpath == os.curdir or relative:
-                                print("\"" + os.path.abspath(os.path.join(dirpath, file)) + "\" has been skipped.")
-                            else:
-                                print("\"" + os.path.join(dirpath, file) + "\" has been skipped.")
+                        elif origpath == os.curdir or relative:
+                            print("\"" + os.path.abspath(os.path.join(dirpath, file)) + "\" has been skipped.")
                         else:
-                            if re.search(".*(" + regex_excl + ")([^" + re.escape(os.path.sep) + "]+$|$)",
-                                         os.path.join(dirpath, file)) is None:
-                                if re.search(".*(" + regex_excl_dirs + ".*" + re.escape(os.path.sep) + ").*",
-                                             os.path.join(dirpath, file)) is None:
-                                    path = os.path.join(dirpath, file)
-                                    file_info = os.lstat(path)
-                                    file_attrs[path] = {
-                                        "mode": file_info.st_mode,
-                                        "ctime": file_info.st_ctime,
-                                        "mtime": file_info.st_mtime,
-                                        "atime": file_info.st_atime,
-                                        "uid": file_info.st_uid,
-                                        "gid": file_info.st_gid,
-                                    }
-                                elif origpath == os.curdir or relative:
-                                    print("\"" + os.path.join(dirpath, file).replace(os.curdir + os.path.sep,
-                                                                                     os.getcwd() +
-                                                                                     os.path.sep,
-                                                                                     1) + "\" has been skipped.")
-                                else:
-                                    print("\"" + os.path.join(dirpath, file) + "\" has been skipped.")
-                            elif origpath == os.curdir or relative:
-                                print("\"" + os.path.abspath(os.path.join(dirpath, file)) + "\" has been skipped.")
-                            else:
-                                print("\"" + os.path.join(dirpath, file) + "\" has been skipped.")
-                    elif (exclusions and exclusionsfile and exclusionsdir) is None:
-                        path = os.path.join(dirpath, file)
-                        file_info = os.lstat(path)
-                        file_attrs[path] = {
-                            "mode": file_info.st_mode,
-                            "ctime": file_info.st_ctime,
-                            "mtime": file_info.st_mtime,
-                            "atime": file_info.st_atime,
-                            "uid": file_info.st_uid,
-                            "gid": file_info.st_gid,
-                        }
+                            print("\"" + os.path.join(dirpath, file) + "\" has been skipped.")
+                elif (exclusions and exclusions_file and exclusions_dir) is None:
+                    path = os.path.join(dirpath, file)
+                    file_info = os.lstat(path)
+                    file_attrs[path] = {
+                        "mode": file_info.st_mode,
+                        "ctime": file_info.st_ctime,
+                        "mtime": file_info.st_mtime,
+                        "atime": file_info.st_atime,
+                        "uid": file_info.st_uid,
+                        "gid": file_info.st_gid,
+                    }
             except KeyboardInterrupt:
-                print("Shutdown requested... exiting")
-                sys.exit(1)
+                try:
+                    print("\nShutdown requested... dumping what could be collected and exiting\n")
+                    return file_attrs
+                except KeyboardInterrupt:
+                    print("Cancelling and exiting...")
             except Exception as e:
                 print(e)
                 pass
@@ -484,7 +431,7 @@ def apply_file_attrs(attrs):
             except OSError as Err:
                 print(Err)
                 pass
-        elif os.utime in os.supports_follow_symlinks is True:
+        elif os.utime in os.supports_follow_symlinks:
             try:
                 if os.path.lexists(path):
                     atime = attr["atime"]
@@ -603,15 +550,15 @@ def apply_file_attrs(attrs):
         sys.exit(0)
 
 
-def save_attrs(pathtosave, output, relative, exclusions, exclusionsfile, exclusionsdir):
-    if pathtosave.endswith('"'):
-        pathtosave = pathtosave[:-1] + os.path.sep  # Windows escapes the quote if the command ends in \" so this fixes
-        # that, or at least it does if this argument is the last one, otherwise the output argument will eat all the
-        # next args
-    if pathtosave.endswith(':'):
-        pathtosave = pathtosave + os.path.sep
-    if not os.path.exists(pathtosave):
-        print("\nERROR: The specified path:\n\n%s\n\nDoesn't exist, aborting..." % pathtosave, file=sys.stderr)
+def save_attrs(path_to_save, output, relative, exclusions, exclusions_file, exclusions_dir):
+    if path_to_save.endswith('"'):
+        path_to_save = path_to_save[:-1] + os.path.sep  # Windows escapes the quote if the command ends in \" so this
+        # fixes that, or at least it does if this argument is the last one, otherwise the output argument will eat
+        # all the next args
+    if path_to_save.endswith(':'):
+        path_to_save = path_to_save + os.path.sep
+    if not os.path.exists(path_to_save):
+        print("\nERROR: The specified path:\n\n%s\n\nDoesn't exist, aborting..." % path_to_save, file=sys.stderr)
         sys.exit(1)
 
     attr_file_name = output
@@ -631,23 +578,23 @@ def save_attrs(pathtosave, output, relative, exclusions, exclusionsfile, exclusi
     if os.path.basename(attr_file_name) == "":
         attr_file_name = os.path.join(attr_file_name, ".saved-file-attrs")
 
-    reqstate = [relative is True,
-                pathtosave != os.curdir,
+    reqstate = [relative,
+                path_to_save != os.curdir,
                 os.path.dirname(attr_file_name) == ""
                 ]
 
-    origpath = pathtosave
+    origpath = path_to_save
     if reqstate[0] & reqstate[1]:
         origdir = os.getcwd()
     if all(reqstate):
         attr_file_name = os.path.join(os.getcwd(), attr_file_name)
     if reqstate[0] & reqstate[1]:
-        os.chdir(pathtosave)
-        pathtosave = os.curdir
+        os.chdir(path_to_save)
+        path_to_save = os.curdir
 
     try:
         attr_file = open(attr_file_name, "w", encoding="utf_8")
-        attrs = collect_file_attrs(pathtosave, exclusions, origpath, relative, exclusionsfile, exclusionsdir)
+        attrs = collect_file_attrs(path_to_save, exclusions, origpath, relative, exclusions_file, exclusions_dir)
         json.dump(attrs, attr_file, indent=2, ensure_ascii=False)
         print("Attributes saved to " + attr_file_name)
     except KeyboardInterrupt:
@@ -665,8 +612,8 @@ def save_attrs(pathtosave, output, relative, exclusions, exclusionsfile, exclusi
         os.chdir(origdir)
 
 
-def restore_attrs(inputfile, workingpath):
-    attr_file_name = inputfile
+def restore_attrs(input_file, working_path):
+    attr_file_name = input_file
     if attr_file_name.endswith('"'):
         attr_file_name = attr_file_name[:-1] + os.path.sep  # Windows escapes the quote if the command ends in \" so
         # this fixes that
@@ -683,13 +630,12 @@ def restore_attrs(inputfile, workingpath):
     try:
         attr_file = open(attr_file_name, "r", encoding="utf_8")
         attrs = json.load(attr_file)
-        if workingpath != os.curdir:
-            os.chdir(workingpath)
         if len(attrs) == 0:
             print("ERROR: The attribute file is empty!", file=sys.stderr)
             sys.exit(1)
-        else:
-            apply_file_attrs(attrs)
+        if working_path != os.curdir:
+            os.chdir(working_path)
+        apply_file_attrs(attrs)
     except KeyboardInterrupt:
         print("Shutdown requested... exiting", file=sys.stderr)
         sys.exit(1)
@@ -727,8 +673,8 @@ def main():
                              metavar="%FILE%", nargs="*")
     save_parser.add_argument("--ed", "-ed", help="Match all the paths that incorporates these strings and exclude "
                                                  "them, strings are considered directories unless a full path is "
-                                                 "given in which case it will exclude all the subdirs and files "
-                                                 "inside that directory. (Optional)",
+                                                 "given in which case it will exclude all the sub directories and "
+                                                 "files inside that directory. (Optional)",
                              metavar="%DIRECTORY%", nargs="*")
     restore_parser = subparsers.add_parser(
         "restore", help="Restore saved file and folder attributes"
@@ -743,6 +689,10 @@ def main():
     args = parser.parse_args()
 
     if args.mode == "save":
+        if args.ex is not None and (args.ef or args.ed) is not None:
+            print("ERROR: You can't use --ex with --ef or --ed, you should use --ef and --ed or use only one of them",
+                  file=sys.stderr)
+            sys.exit(3)
         if args.ed is not None:
             if len(args.ed) == 0 or "" in args.ed:
                 print("ERROR: Directory exclusion can't be empty or have an empty value or else everything will be "
@@ -755,14 +705,10 @@ def main():
                       "aborting...",
                       file=sys.stderr)
                 sys.exit(3)
-        if args.ef is not None and "" in args.ef:
-            print("WARNING: You have used an empty value for file exclusions, every file will be excluded.")
-        if args.ex is not None and (args.ef or args.ed) is not None:
-            print("ERROR: You can't use --ex with --ef or --ed, you should use --ef and --ed or use only one of them",
-                  file=sys.stderr)
-            sys.exit(3)
-        else:
-            save_attrs(args.p, args.o, args.r, args.ex, args.ef, args.ed)
+        if args.ef is not None:
+            if len(args.ef) == 0 or "" in args.ef:
+                print("\nWARNING: You have used an empty value for file exclusions, every file will be excluded.\n")
+        save_attrs(args.p, args.o, args.r, args.ex, args.ef, args.ed)
     elif args.mode == "restore":
         restore_attrs(args.i, args.wp)
     elif args.mode is None:

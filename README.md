@@ -102,6 +102,6 @@ dir A\dir B\also.this.txt         <- file
 ## :warning: EXCLUSIONS ARE CASE INSENSITIVE IF THE PLATFORM IS WINDOWS :warning:  
 Windows is not a case-sensitive OS so this most probably is intended, leaving this warning anyway.
 
-
+Also note that excluding files and/or directories wont prevent the script from listing such items, they will be listed but their attributes wont be retrieved.
 
   [1]: https://github.com/robertknight/mandrawer

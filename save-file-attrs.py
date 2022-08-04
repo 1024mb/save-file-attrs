@@ -443,7 +443,7 @@ def apply_file_attrs(attrs, no_print):
                     else:
                         print("Skipping non-existent item \"%s\"" % path)
             except OSError as Err:
-                print(Err, file=sys.stderr)
+                print("\n %s \n" % Err, file=sys.stderr)
                 pass
         elif os.utime in os.supports_follow_symlinks:
             try:
@@ -502,7 +502,7 @@ def apply_file_attrs(attrs, no_print):
                     else:
                         print("Skipping non-existent item \"%s\"" % path)
             except OSError as Err:
-                print(Err, file=sys.stderr)
+                print("\n %s \n" % Err, file=sys.stderr)
                 pass
         else:
             try:
@@ -569,7 +569,7 @@ def apply_file_attrs(attrs, no_print):
                     else:
                         print("Skipping non-existent item \"%s\"" % path)
             except OSError as Err:
-                print(Err, file=sys.stderr)
+                print("\n %s \n" % Err, file=sys.stderr)
                 pass
     if proc == 0:
         print("Nothing to change.")

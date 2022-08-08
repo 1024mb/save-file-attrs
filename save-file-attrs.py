@@ -387,6 +387,8 @@ def collect_file_attrs(path, exclusions, origpath, relative, exclusions_file, ex
 def apply_file_attrs(attrs, no_print):
 
     proc = 0
+    errored = []  # to store errored files/folders
+
     for path in sorted(attrs):
         attr = attrs[path]
         if platform.system() == "Windows":
@@ -443,7 +445,11 @@ def apply_file_attrs(attrs, no_print):
                     else:
                         print("Skipping non-existent item \"%s\"" % path)
             except OSError as Err:
-                print("\n %s \n" % Err, file=sys.stderr)
+                print("\n%s\n" % Err, file=sys.stderr)
+                if os.path.splitdrive(path)[0] == "":
+                    errored.append(os.path.abspath(path))
+                else:
+                    errored.append(path)
                 pass
         elif os.utime in os.supports_follow_symlinks:
             try:
@@ -502,7 +508,11 @@ def apply_file_attrs(attrs, no_print):
                     else:
                         print("Skipping non-existent item \"%s\"" % path)
             except OSError as Err:
-                print("\n %s \n" % Err, file=sys.stderr)
+                print("\n%s\n" % Err, file=sys.stderr)
+                if os.path.splitdrive(path)[0] == "":
+                    errored.append(os.path.abspath(path))
+                else:
+                    errored.append(path)
                 pass
         else:
             try:
@@ -569,9 +579,19 @@ def apply_file_attrs(attrs, no_print):
                     else:
                         print("Skipping non-existent item \"%s\"" % path)
             except OSError as Err:
-                print("\n %s \n" % Err, file=sys.stderr)
+                print("\n%s\n" % Err, file=sys.stderr)
+                if os.path.splitdrive(path)[0] == "":
+                    errored.append(os.path.abspath(path))
+                else:
+                    errored.append(path)
                 pass
-    if proc == 0:
+    if len(errored) != 0:
+        print("\nErrored files/folders:\n")
+        for line in errored:
+            print(line + "\n")
+        print("\nThere were %s errors while restoring the attributes." % len(errored))
+        sys.exit(1)
+    elif proc == 0:
         print("Nothing to change.")
         sys.exit(0)
 
@@ -696,7 +716,7 @@ def restore_attrs(input_file, working_path, no_print):
         print("Shutdown requested... exiting", file=sys.stderr)
         sys.exit(1)
     except OSError as ERR_R:
-        print("ERROR: There was an error reading the attribute file, no attribute has been changed.\n\n", ERR_R, "\n",
+        print("ERROR: There was an error reading the attribute file, no attribute has been changed.\n\n%s\n" % ERR_R,
               file=sys.stderr)
         sys.exit(1)
 

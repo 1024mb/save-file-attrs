@@ -18,6 +18,8 @@ if platform.system() == "Windows":
 
 def collect_file_attrs(path, exclusions, origpath, relative, exclusions_file, exclusions_dir, no_print):
 
+    print("\nCollecting attributes, please wait...\n")
+
     curr_working_dir = re.escape(os.getcwd())
     current_system = platform.system()
 
@@ -666,14 +668,14 @@ def save_attrs(path_to_save, output, relative, exclusions, exclusions_file, excl
         json.dump(attrs, attr_file, indent=2, ensure_ascii=False)
         if os.path.splitdrive(attr_file_name)[0] == "":
             attr_file_name = os.path.join(os.getcwd(), attr_file_name)
-        print("Attributes saved to \"" + attr_file_name + "\"")
+        print("\nAttributes saved to \"" + attr_file_name + "\"")
     except KeyboardInterrupt:
-        if origdir in locals():
+        if "origdir" in locals():
             os.chdir(origdir)
         print("Shutdown requested... exiting", file=sys.stderr)
         sys.exit(1)
     except OSError as ERR_W:
-        if origdir in locals():
+        if "origdir" in locals():
             os.chdir(origdir)
         print("ERROR: There was an error writing to the attribute file.\n\n", ERR_W, "\n", file=sys.stderr)
         sys.exit(1)

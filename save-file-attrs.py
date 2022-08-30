@@ -677,7 +677,7 @@ def save_attrs(path_to_save, output, relative, exclusions, exclusions_file, excl
     except OSError as ERR_W:
         if "origdir" in locals():
             os.chdir(origdir)
-        print("ERROR: There was an error writing to the attribute file.\n\n", ERR_W, "\n", file=sys.stderr)
+        print("ERROR: There was an error writing to the attribute file.\n\n", ERR_W, file=sys.stderr)
         sys.exit(1)
 
     if reqstate[0] & reqstate[1]:

@@ -17,7 +17,6 @@ if platform.system() == "Windows":
 
 
 def collect_file_attrs(path, exclusions, origpath, relative, exclusions_file, exclusions_dir, no_print):
-
     print("\nCollecting attributes, please wait...\n")
 
     curr_working_dir = re.escape(os.getcwd())
@@ -155,7 +154,7 @@ def collect_file_attrs(path, exclusions, origpath, relative, exclusions_file, ex
         for file in files:
             try:
                 if exclusions is not None:
-                    if current_system == "Windows" and\
+                    if current_system == "Windows" and \
                             re.search(".*(" + regex_excl + ").*", os.path.join(dirpath, file),
                                       flags=re.IGNORECASE) is None:
                         path = os.path.join(dirpath, file)
@@ -168,7 +167,7 @@ def collect_file_attrs(path, exclusions, origpath, relative, exclusions_file, ex
                             "uid": file_info.st_uid,
                             "gid": file_info.st_gid,
                         }
-                    elif current_system != "Windows" and\
+                    elif current_system != "Windows" and \
                             re.search(".*(" + regex_excl + ").*", os.path.join(dirpath, file)) is None:
                         path = os.path.join(dirpath, file)
                         file_info = os.lstat(path)
@@ -187,7 +186,7 @@ def collect_file_attrs(path, exclusions, origpath, relative, exclusions_file, ex
                             print("\"" + os.path.join(dirpath, file) + "\" has been skipped.")
                 if exclusions_file is not None and exclusions_dir is None:
                     if os.path.isfile(os.path.join(dirpath, file)):
-                        if current_system == "Windows" and\
+                        if current_system == "Windows" and \
                                 re.search(".*(" + regex_excl + ")([^" + re.escape(os.path.sep) + "]+$|$)",
                                           os.path.join(dirpath, file), flags=re.IGNORECASE) is None:
                             path = os.path.join(dirpath, file)
@@ -200,7 +199,7 @@ def collect_file_attrs(path, exclusions, origpath, relative, exclusions_file, ex
                                 "uid": file_info.st_uid,
                                 "gid": file_info.st_gid,
                             }
-                        elif current_system != "Windows" and\
+                        elif current_system != "Windows" and \
                                 re.search(".*(" + regex_excl + ")([^" + re.escape(os.path.sep) + "]+$|$)",
                                           os.path.join(dirpath, file)) is None:
                             path = os.path.join(dirpath, file)
@@ -231,7 +230,7 @@ def collect_file_attrs(path, exclusions, origpath, relative, exclusions_file, ex
                         }
                 elif exclusions_dir is not None and exclusions_file is None:
                     if os.path.isdir(os.path.join(dirpath, file)):
-                        if current_system == "Windows" and\
+                        if current_system == "Windows" and \
                                 re.search(".*(" + regex_excl_dirs + ")" + "(.*" + re.escape(os.path.sep) + "*.+|$)",
                                           os.path.join(dirpath, file), flags=re.IGNORECASE) is None:
                             path = os.path.join(dirpath, file)
@@ -244,7 +243,7 @@ def collect_file_attrs(path, exclusions, origpath, relative, exclusions_file, ex
                                 "uid": file_info.st_uid,
                                 "gid": file_info.st_gid,
                             }
-                        elif current_system != "Windows" and\
+                        elif current_system != "Windows" and \
                                 re.search(".*(" + regex_excl_dirs + ")" + "(.*" + re.escape(os.path.sep) + "*.+|$)",
                                           os.path.join(dirpath, file)) is None:
                             path = os.path.join(dirpath, file)
@@ -263,7 +262,7 @@ def collect_file_attrs(path, exclusions, origpath, relative, exclusions_file, ex
                             else:
                                 print("\"" + os.path.join(dirpath, file) + "\" has been skipped.")
                     else:  # if is a file
-                        if current_system == "Windows" and\
+                        if current_system == "Windows" and \
                                 re.search(".*(" + regex_excl_dirs + ".*" + re.escape(os.path.sep) + ").*",
                                           os.path.join(dirpath, file), flags=re.IGNORECASE) is None:
                             path = os.path.join(dirpath, file)
@@ -276,7 +275,7 @@ def collect_file_attrs(path, exclusions, origpath, relative, exclusions_file, ex
                                 "uid": file_info.st_uid,
                                 "gid": file_info.st_gid,
                             }
-                        elif current_system != "Windows" and\
+                        elif current_system != "Windows" and \
                                 re.search(".*(" + regex_excl_dirs + ".*" + re.escape(os.path.sep) + ").*",
                                           os.path.join(dirpath, file)) is None:
                             path = os.path.join(dirpath, file)
@@ -296,7 +295,7 @@ def collect_file_attrs(path, exclusions, origpath, relative, exclusions_file, ex
                                 print("\"" + os.path.join(dirpath, file) + "\" has been skipped.")
                 elif (exclusions_dir and exclusions_file) is not None:
                     if os.path.isdir(os.path.join(dirpath, file)):
-                        if current_system == "Windows" and\
+                        if current_system == "Windows" and \
                                 re.search(".*(" + regex_excl_dirs + ")" + "(.*" + re.escape(os.path.sep) + "*.+|$)",
                                           os.path.join(dirpath, file), flags=re.IGNORECASE) is None:
                             path = os.path.join(dirpath, file)
@@ -309,7 +308,7 @@ def collect_file_attrs(path, exclusions, origpath, relative, exclusions_file, ex
                                 "uid": file_info.st_uid,
                                 "gid": file_info.st_gid,
                             }
-                        elif current_system != "Windows" and\
+                        elif current_system != "Windows" and \
                                 re.search(".*(" + regex_excl_dirs + ")" + "(.*" + re.escape(os.path.sep) + "*.+|$)",
                                           os.path.join(dirpath, file)) is None:
                             path = os.path.join(dirpath, file)
@@ -328,7 +327,7 @@ def collect_file_attrs(path, exclusions, origpath, relative, exclusions_file, ex
                             else:
                                 print("\"" + os.path.join(dirpath, file) + "\" has been skipped.")
                     else:
-                        if current_system == "Windows" and\
+                        if current_system == "Windows" and \
                                 re.search(".*(" + regex_excl + ")([^" + re.escape(os.path.sep) + "]+$|$)",
                                           os.path.join(dirpath, file), flags=re.IGNORECASE) is None:
                             if re.search(".*(" + regex_excl_dirs + ".*" + re.escape(os.path.sep) + ").*",
@@ -343,7 +342,7 @@ def collect_file_attrs(path, exclusions, origpath, relative, exclusions_file, ex
                                     "uid": file_info.st_uid,
                                     "gid": file_info.st_gid,
                                 }
-                        elif current_system != "Windows" and\
+                        elif current_system != "Windows" and \
                                 re.search(".*(" + regex_excl + ")([^" + re.escape(os.path.sep) + "]+$|$)",
                                           os.path.join(dirpath, file)) is None:
                             if re.search(".*(" + regex_excl_dirs + ".*" + re.escape(os.path.sep) + ").*",
@@ -387,7 +386,6 @@ def collect_file_attrs(path, exclusions, origpath, relative, exclusions_file, ex
 
 
 def apply_file_attrs(attrs, no_print):
-
     proc = 0
     errored = []  # to store errored files/folders
 
@@ -599,7 +597,6 @@ def apply_file_attrs(attrs, no_print):
 
 
 def save_attrs(path_to_save, output, relative, exclusions, exclusions_file, exclusions_dir, no_print):
-
     if path_to_save.endswith('"'):
         path_to_save = path_to_save[:-1] + os.path.sep  # Windows escapes the quote if the command ends in \" so this
         # fixes that, or at least it does if this argument is the last one, otherwise the output argument will eat
@@ -624,11 +621,10 @@ def save_attrs(path_to_save, output, relative, exclusions, exclusions_file, excl
     if attr_file_name.endswith(':'):
         attr_file_name = attr_file_name + os.path.sep
 
-    if os.path.basename(attr_file_name) != "":
-        if os.path.isdir(attr_file_name):
-            print("ERROR: The output filename you specified is the same one of a directory, a directory and a file "
-                  "with the same name can't exist within the same path, aborting...")
-            sys.exit(1)
+    if os.path.basename(attr_file_name) != "" and os.path.isdir(attr_file_name):
+        print("ERROR: The output filename you specified is the same one of a directory, a directory and a file "
+              "with the same name can't exist within the same path, aborting...")
+        sys.exit(1)
 
     if os.path.dirname(attr_file_name) != "":  # if the root directory of attr_file_name is not an empty string
         if os.path.isfile(os.path.dirname(attr_file_name)):
@@ -662,7 +658,7 @@ def save_attrs(path_to_save, output, relative, exclusions, exclusions_file, excl
         path_to_save = os.curdir
 
     try:
-        attr_file = open(attr_file_name, "w", encoding="utf_8")
+        attr_file = open(attr_file_name, "w", encoding="utf-8", errors="surrogatepass")
         attrs = collect_file_attrs(path_to_save, exclusions, origpath, relative, exclusions_file, exclusions_dir,
                                    no_print)
         json.dump(attrs, attr_file, indent=2, ensure_ascii=False)
@@ -685,7 +681,6 @@ def save_attrs(path_to_save, output, relative, exclusions, exclusions_file, excl
 
 
 def restore_attrs(input_file, working_path, no_print):
-
     attr_file_name = input_file
 
     if attr_file_name.endswith('"'):
@@ -706,7 +701,7 @@ def restore_attrs(input_file, working_path, no_print):
         print("ERROR: The attribute file is empty!", file=sys.stderr)
         sys.exit(1)
     try:
-        attr_file = open(attr_file_name, "r", encoding="utf_8")
+        attr_file = open(attr_file_name, "r", encoding="utf-8", errors="surrogatepass")
         attrs = json.load(attr_file)
         if len(attrs) == 0:
             print("ERROR: The attribute file is empty!", file=sys.stderr)
@@ -775,21 +770,18 @@ def main():
             print("ERROR: You can't use --ex with --ef or --ed, you should use --ef and --ed or use only one of them",
                   file=sys.stderr)
             sys.exit(3)
-        if args.ed is not None:
-            if len(args.ed) == 0 or "" in args.ed:
-                print("ERROR: Directory exclusion can't be empty or have an empty value or else everything will be "
-                      "excluded, aborting...",
-                      file=sys.stderr)
-                sys.exit(3)
-        if args.ex is not None:
-            if len(args.ex) == 0 or "" in args.ex:
-                print("ERROR: Exclusion can't be empty or have an empty value or else everything will be excluded, "
-                      "aborting...",
-                      file=sys.stderr)
-                sys.exit(3)
-        if args.ef is not None:
-            if len(args.ef) == 0 or "" in args.ef:
-                print("\nWARNING: You have used an empty value for file exclusions, every file will be excluded.\n")
+        if args.ed is not None and (len(args.ed) == 0 or "" in args.ed):
+            print("ERROR: Directory exclusion can't be empty or have an empty value or else everything will be "
+                  "excluded, aborting...",
+                  file=sys.stderr)
+            sys.exit(3)
+        if args.ex is not None and (len(args.ex) == 0 or "" in args.ex):
+            print("ERROR: Exclusion can't be empty or have an empty value or else everything will be excluded, "
+                  "aborting...",
+                  file=sys.stderr)
+            sys.exit(3)
+        if args.ef is not None and (len(args.ef) == 0 or "" in args.ef):
+            print("\nWARNING: You have used an empty value for file exclusions, every file will be excluded.\n")
         save_attrs(args.p, args.o, args.r, args.ex, args.ef, args.ed, args.np)
     elif args.mode == "restore":
         restore_attrs(args.i, args.wp, args.np)

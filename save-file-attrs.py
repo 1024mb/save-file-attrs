@@ -157,28 +157,10 @@ def collect_file_attrs(path, exclusions, origpath, relative, exclusions_file, ex
                     if current_system == "Windows" and \
                             re.search(".*(" + regex_excl + ").*", os.path.join(dirpath, file),
                                       flags=re.IGNORECASE) is None:
-                        path = os.path.join(dirpath, file)
-                        file_info = os.lstat(path)
-                        file_attrs[path] = {
-                            "mode": file_info.st_mode,
-                            "ctime": file_info.st_ctime,
-                            "mtime": file_info.st_mtime,
-                            "atime": file_info.st_atime,
-                            "uid": file_info.st_uid,
-                            "gid": file_info.st_gid,
-                        }
+                        get_attrs(dirpath, file, file_attrs)
                     elif current_system != "Windows" and \
                             re.search(".*(" + regex_excl + ").*", os.path.join(dirpath, file)) is None:
-                        path = os.path.join(dirpath, file)
-                        file_info = os.lstat(path)
-                        file_attrs[path] = {
-                            "mode": file_info.st_mode,
-                            "ctime": file_info.st_ctime,
-                            "mtime": file_info.st_mtime,
-                            "atime": file_info.st_atime,
-                            "uid": file_info.st_uid,
-                            "gid": file_info.st_gid,
-                        }
+                        get_attrs(dirpath, file, file_attrs)
                     elif no_print is False:
                         if origpath == os.curdir or relative:
                             print("\"" + os.path.abspath(os.path.join(dirpath, file)) + "\" has been skipped.")
@@ -189,73 +171,28 @@ def collect_file_attrs(path, exclusions, origpath, relative, exclusions_file, ex
                         if current_system == "Windows" and \
                                 re.search(".*(" + regex_excl + ")([^" + re.escape(os.path.sep) + "]+$|$)",
                                           os.path.join(dirpath, file), flags=re.IGNORECASE) is None:
-                            path = os.path.join(dirpath, file)
-                            file_info = os.lstat(path)
-                            file_attrs[path] = {
-                                "mode": file_info.st_mode,
-                                "ctime": file_info.st_ctime,
-                                "mtime": file_info.st_mtime,
-                                "atime": file_info.st_atime,
-                                "uid": file_info.st_uid,
-                                "gid": file_info.st_gid,
-                            }
+                            get_attrs(dirpath, file, file_attrs)
                         elif current_system != "Windows" and \
                                 re.search(".*(" + regex_excl + ")([^" + re.escape(os.path.sep) + "]+$|$)",
                                           os.path.join(dirpath, file)) is None:
-                            path = os.path.join(dirpath, file)
-                            file_info = os.lstat(path)
-                            file_attrs[path] = {
-                                "mode": file_info.st_mode,
-                                "ctime": file_info.st_ctime,
-                                "mtime": file_info.st_mtime,
-                                "atime": file_info.st_atime,
-                                "uid": file_info.st_uid,
-                                "gid": file_info.st_gid,
-                            }
+                            get_attrs(dirpath, file, file_attrs)
                         elif no_print is False:
                             if origpath == os.curdir or relative:
                                 print("\"" + os.path.abspath(os.path.join(dirpath, file)) + "\" has been skipped.")
                             else:
                                 print("\"" + os.path.join(dirpath, file) + "\" has been skipped.")
                     else:
-                        path = os.path.join(dirpath, file)
-                        file_info = os.lstat(path)
-                        file_attrs[path] = {
-                            "mode": file_info.st_mode,
-                            "ctime": file_info.st_ctime,
-                            "mtime": file_info.st_mtime,
-                            "atime": file_info.st_atime,
-                            "uid": file_info.st_uid,
-                            "gid": file_info.st_gid,
-                        }
+                        get_attrs(dirpath, file, file_attrs)
                 elif exclusions_dir is not None and exclusions_file is None:
                     if os.path.isdir(os.path.join(dirpath, file)):
                         if current_system == "Windows" and \
                                 re.search(".*(" + regex_excl_dirs + ")" + "(.*" + re.escape(os.path.sep) + "*.+|$)",
                                           os.path.join(dirpath, file), flags=re.IGNORECASE) is None:
-                            path = os.path.join(dirpath, file)
-                            file_info = os.lstat(path)
-                            file_attrs[path] = {
-                                "mode": file_info.st_mode,
-                                "ctime": file_info.st_ctime,
-                                "mtime": file_info.st_mtime,
-                                "atime": file_info.st_atime,
-                                "uid": file_info.st_uid,
-                                "gid": file_info.st_gid,
-                            }
+                            get_attrs(dirpath, file, file_attrs)
                         elif current_system != "Windows" and \
                                 re.search(".*(" + regex_excl_dirs + ")" + "(.*" + re.escape(os.path.sep) + "*.+|$)",
                                           os.path.join(dirpath, file)) is None:
-                            path = os.path.join(dirpath, file)
-                            file_info = os.lstat(path)
-                            file_attrs[path] = {
-                                "mode": file_info.st_mode,
-                                "ctime": file_info.st_ctime,
-                                "mtime": file_info.st_mtime,
-                                "atime": file_info.st_atime,
-                                "uid": file_info.st_uid,
-                                "gid": file_info.st_gid,
-                            }
+                            get_attrs(dirpath, file, file_attrs)
                         elif no_print is False:
                             if origpath == os.curdir or relative:
                                 print("\"" + os.path.abspath(os.path.join(dirpath, file)) + "\" has been skipped.")
@@ -265,29 +202,11 @@ def collect_file_attrs(path, exclusions, origpath, relative, exclusions_file, ex
                         if current_system == "Windows" and \
                                 re.search(".*(" + regex_excl_dirs + ".*" + re.escape(os.path.sep) + ").*",
                                           os.path.join(dirpath, file), flags=re.IGNORECASE) is None:
-                            path = os.path.join(dirpath, file)
-                            file_info = os.lstat(path)
-                            file_attrs[path] = {
-                                "mode": file_info.st_mode,
-                                "ctime": file_info.st_ctime,
-                                "mtime": file_info.st_mtime,
-                                "atime": file_info.st_atime,
-                                "uid": file_info.st_uid,
-                                "gid": file_info.st_gid,
-                            }
+                            get_attrs(dirpath, file, file_attrs)
                         elif current_system != "Windows" and \
                                 re.search(".*(" + regex_excl_dirs + ".*" + re.escape(os.path.sep) + ").*",
                                           os.path.join(dirpath, file)) is None:
-                            path = os.path.join(dirpath, file)
-                            file_info = os.lstat(path)
-                            file_attrs[path] = {
-                                "mode": file_info.st_mode,
-                                "ctime": file_info.st_ctime,
-                                "mtime": file_info.st_mtime,
-                                "atime": file_info.st_atime,
-                                "uid": file_info.st_uid,
-                                "gid": file_info.st_gid,
-                            }
+                            get_attrs(dirpath, file, file_attrs)
                         elif no_print is False:
                             if origpath == os.curdir or relative:
                                 print("\"" + os.path.abspath(os.path.join(dirpath, file)) + "\" has been skipped.")
@@ -298,29 +217,11 @@ def collect_file_attrs(path, exclusions, origpath, relative, exclusions_file, ex
                         if current_system == "Windows" and \
                                 re.search(".*(" + regex_excl_dirs + ")" + "(.*" + re.escape(os.path.sep) + "*.+|$)",
                                           os.path.join(dirpath, file), flags=re.IGNORECASE) is None:
-                            path = os.path.join(dirpath, file)
-                            file_info = os.lstat(path)
-                            file_attrs[path] = {
-                                "mode": file_info.st_mode,
-                                "ctime": file_info.st_ctime,
-                                "mtime": file_info.st_mtime,
-                                "atime": file_info.st_atime,
-                                "uid": file_info.st_uid,
-                                "gid": file_info.st_gid,
-                            }
+                            get_attrs(dirpath, file, file_attrs)
                         elif current_system != "Windows" and \
                                 re.search(".*(" + regex_excl_dirs + ")" + "(.*" + re.escape(os.path.sep) + "*.+|$)",
                                           os.path.join(dirpath, file)) is None:
-                            path = os.path.join(dirpath, file)
-                            file_info = os.lstat(path)
-                            file_attrs[path] = {
-                                "mode": file_info.st_mode,
-                                "ctime": file_info.st_ctime,
-                                "mtime": file_info.st_mtime,
-                                "atime": file_info.st_atime,
-                                "uid": file_info.st_uid,
-                                "gid": file_info.st_gid,
-                            }
+                            get_attrs(dirpath, file, file_attrs)
                         elif no_print is False:
                             if origpath == os.curdir or relative:
                                 print("\"" + os.path.abspath(os.path.join(dirpath, file)) + "\" has been skipped.")
@@ -332,47 +233,20 @@ def collect_file_attrs(path, exclusions, origpath, relative, exclusions_file, ex
                                           os.path.join(dirpath, file), flags=re.IGNORECASE) is None:
                             if re.search(".*(" + regex_excl_dirs + ".*" + re.escape(os.path.sep) + ").*",
                                          os.path.join(dirpath, file), flags=re.IGNORECASE) is None:
-                                path = os.path.join(dirpath, file)
-                                file_info = os.lstat(path)
-                                file_attrs[path] = {
-                                    "mode": file_info.st_mode,
-                                    "ctime": file_info.st_ctime,
-                                    "mtime": file_info.st_mtime,
-                                    "atime": file_info.st_atime,
-                                    "uid": file_info.st_uid,
-                                    "gid": file_info.st_gid,
-                                }
+                                get_attrs(dirpath, file, file_attrs)
                         elif current_system != "Windows" and \
                                 re.search(".*(" + regex_excl + ")([^" + re.escape(os.path.sep) + "]+$|$)",
                                           os.path.join(dirpath, file)) is None:
                             if re.search(".*(" + regex_excl_dirs + ".*" + re.escape(os.path.sep) + ").*",
                                          os.path.join(dirpath, file)) is None:
-                                path = os.path.join(dirpath, file)
-                                file_info = os.lstat(path)
-                                file_attrs[path] = {
-                                    "mode": file_info.st_mode,
-                                    "ctime": file_info.st_ctime,
-                                    "mtime": file_info.st_mtime,
-                                    "atime": file_info.st_atime,
-                                    "uid": file_info.st_uid,
-                                    "gid": file_info.st_gid,
-                                }
+                                get_attrs(dirpath, file, file_attrs)
                         elif no_print is False:
                             if origpath == os.curdir or relative:
                                 print("\"" + os.path.abspath(os.path.join(dirpath, file)) + "\" has been skipped.")
                             else:
                                 print("\"" + os.path.join(dirpath, file) + "\" has been skipped.")
                 elif (exclusions and exclusions_file and exclusions_dir) is None:
-                    path = os.path.join(dirpath, file)
-                    file_info = os.lstat(path)
-                    file_attrs[path] = {
-                        "mode": file_info.st_mode,
-                        "ctime": file_info.st_ctime,
-                        "mtime": file_info.st_mtime,
-                        "atime": file_info.st_atime,
-                        "uid": file_info.st_uid,
-                        "gid": file_info.st_gid,
-                    }
+                    get_attrs(dirpath, file, file_attrs)
             except KeyboardInterrupt:
                 try:
                     print("\nShutdown requested... dumping what could be collected and exiting\n")
@@ -385,187 +259,173 @@ def collect_file_attrs(path, exclusions, origpath, relative, exclusions_file, ex
     return file_attrs
 
 
+def get_attrs(dirpath, file, file_attrs):
+    path = os.path.join(dirpath, file)
+    file_info = os.lstat(path)
+    file_attrs[path] = {
+        "mode": file_info.st_mode,
+        "ctime": file_info.st_ctime,
+        "mtime": file_info.st_mtime,
+        "atime": file_info.st_atime,
+        "uid": file_info.st_uid,
+        "gid": file_info.st_gid,
+    }
+
+def get_attr_for_restore(attr, path):
+    atime = attr["atime"]
+    mtime = attr["mtime"]
+    if platform.system() == "Windows":
+        ctime = attr["ctime"]
+    else:
+        uid = attr["uid"]
+        gid = attr["gid"]
+    mode = attr["mode"]
+
+    current_file_info = os.lstat(path)
+    mode_changed = current_file_info.st_mode != mode
+    atime_changed = current_file_info.st_atime != atime
+    mtime_changed = current_file_info.st_mtime != mtime
+    if platform.system() == "Windows":
+        ctime_changed = current_file_info.st_ctime != ctime
+    else:
+        uid_changed = current_file_info.st_uid != uid
+        gid_changed = current_file_info.st_gid != gid
+    
+    if platform.system() == "Windows":
+        return atime, mtime, ctime, mode, mode_changed, atime_changed, mtime_changed, ctime_changed
+    else:
+        return atime, mtime, mode, mode_changed, atime_changed, mtime_changed, uid, gid, uid_changed, gid_changed
+
 def apply_file_attrs(attrs, no_print):
     proc = 0
     errored = []  # to store errored files/folders
+    
+    msg_uid_gid = "Updating UID, GID for \"%s\""
+    msg_permissions = "Updating permissions for \"%s\""
+    msg_3_dates = "Updating dates for \"%s\""
+    msg_2_dates = "Updating mtime or atime for \"%s\""
 
     for path in sorted(attrs):
         attr = attrs[path]
-        if platform.system() == "Windows":
-            try:
-                if os.path.lexists(path):
-                    if not os.path.islink(path):
-                        atime = attr["atime"]
-                        mtime = attr["mtime"]
-                        ctime = attr["ctime"]
-                        mode = attr["mode"]
-
-                        current_file_info = os.lstat(path)
-                        mode_changed = current_file_info.st_mode != mode
-                        atime_changed = current_file_info.st_atime != atime
-                        mtime_changed = current_file_info.st_mtime != mtime
-                        ctime_changed = current_file_info.st_ctime != ctime
-
-                        if mode_changed:
-                            if os.path.splitdrive(path)[0] == "":
-                                if no_print is False:
-                                    print("Updating permissions for \"%s\"" % os.path.abspath(path))
-                                os.chmod(path, mode)
-                                proc = 1
-                            else:
-                                if no_print is False:
-                                    print("Updating permissions for \"%s\"" % path)
-                                os.chmod(path, mode)
-                                proc = 1
-
-                        if mtime_changed or ctime_changed or atime_changed:
-                            if os.path.splitdrive(path)[0] == "":
-                                if no_print is False:
-                                    print("Updating dates for \"%s\"" % os.path.abspath(path))
-                                os.utime(path, (atime, mtime))
-                                setctime(path, ctime)
-                                proc = 1
-                            else:
-                                if no_print is False:
-                                    print("Updating dates for \"%s\"" % path)
-                                os.utime(path, (atime, mtime))
-                                setctime(path, ctime)
-                                proc = 1
-                    elif no_print is False:
-                        if os.path.splitdrive(path)[0] == "":
-                            print("Skipping symbolic link \"%s\"" % os.path.abspath(path))  # Can't make utime not
-                            # follow symbolic links in Windows, so we skip them or else the attributes of the resolved
-                            # paths will be changed.
-                        else:
-                            print("Skipping symbolic link \"%s\"" % path)  # Can't make utime not follow symbolic links
-                            # in Windows, so we skip them or else the attributes of the resolved paths will be changed.
-                elif no_print is False:
-                    if os.path.splitdrive(path)[0] == "":
-                        print("Skipping non-existent item \"%s\"" % os.path.abspath(path))
+        try:
+            if os.path.lexists(path):
+                if not os.path.islink(path):
+                    if platform.system() == "Windows":
+                        atime, mtime, ctime, mode, mode_changed, atime_changed, mtime_changed, ctime_changed = \
+                            get_attr_for_restore(attr, path)
                     else:
-                        print("Skipping non-existent item \"%s\"" % path)
-            except OSError as Err:
-                print("\n%s\n" % Err, file=sys.stderr)
-                if os.path.splitdrive(path)[0] == "":
-                    errored.append(os.path.abspath(path))
-                else:
-                    errored.append(path)
-                pass
-        elif os.utime in os.supports_follow_symlinks:
-            try:
-                if os.path.lexists(path):
-                    atime = attr["atime"]
-                    mtime = attr["mtime"]
-                    uid = attr["uid"]
-                    gid = attr["gid"]
-                    mode = attr["mode"]
+                        atime, mtime, mode, mode_changed, atime_changed, mtime_changed, uid, gid, uid_changed, \
+                            gid_changed = get_attr_for_restore(attr, path)
 
-                    current_file_info = os.lstat(path)
-                    mode_changed = current_file_info.st_mode != mode
-                    atime_changed = current_file_info.st_atime != atime
-                    mtime_changed = current_file_info.st_mtime != mtime
-                    uid_changed = current_file_info.st_uid != uid
-                    gid_changed = current_file_info.st_gid != gid
-
-                    if uid_changed or gid_changed:
+                    if platform.system() != "Windows" and (uid_changed or gid_changed):
                         if os.path.splitdrive(path)[0] == "":
                             if no_print is False:
-                                print("Updating UID, GID for \"%s\"" % os.path.abspath(path))
-                            os.chown(path, uid, gid, follow_symlinks=False)
+                                print(msg_uid_gid % os.path.abspath(path))
+                            os.chown(path, uid, gid)
                             proc = 1
                         else:
                             if no_print is False:
-                                print("Updating UID, GID for \"%s\"" % path)
-                            os.chown(path, uid, gid, follow_symlinks=False)
+                                print(msg_uid_gid % path)
+                            os.chown(path, uid, gid)
                             proc = 1
 
                     if mode_changed:
                         if os.path.splitdrive(path)[0] == "":
                             if no_print is False:
-                                print("Updating permissions for \"%s\"" % os.path.abspath(path))
-                            os.chmod(path, mode, follow_symlinks=False)
+                                print(msg_permissions % os.path.abspath(path))
+                            os.chmod(path, mode)
                             proc = 1
                         else:
                             if no_print is False:
-                                print("Updating permissions for \"%s\"" % path)
-                            os.chmod(path, mode, follow_symlinks=False)
+                                print(msg_permissions % path)
+                            os.chmod(path, mode)
                             proc = 1
 
-                    if mtime_changed or atime_changed:
-                        if os.path.splitdrive(path)[0] == "":
-                            if no_print is False:
-                                print("Updating mtime or atime for \"%s\"" % os.path.abspath(path))
-                            os.utime(path, (atime, mtime), follow_symlinks=False)
-                            proc = 1
-                        else:
-                            if no_print is False:
-                                print("Updating mtime or atime for \"%s\"" % path)
-                            os.utime(path, (atime, mtime), follow_symlinks=False)
-                            proc = 1
-                elif no_print is False:
-                    if os.path.splitdrive(path)[0] == "":
-                        print("Skipping non-existent item \"%s\"" % os.path.abspath(path))
-                    else:
-                        print("Skipping non-existent item \"%s\"" % path)
-            except OSError as Err:
-                print("\n%s\n" % Err, file=sys.stderr)
-                if os.path.splitdrive(path)[0] == "":
-                    errored.append(os.path.abspath(path))
-                else:
-                    errored.append(path)
-                pass
-        else:
-            try:
-                if os.path.lexists(path):
-                    if not os.path.islink(path):
-                        atime = attr["atime"]
-                        mtime = attr["mtime"]
-                        uid = attr["uid"]
-                        gid = attr["gid"]
-                        mode = attr["mode"]
-
-                        current_file_info = os.lstat(path)
-                        mode_changed = current_file_info.st_mode != mode
-                        atime_changed = current_file_info.st_atime != atime
-                        mtime_changed = current_file_info.st_mtime != mtime
-                        uid_changed = current_file_info.st_uid != uid
-                        gid_changed = current_file_info.st_gid != gid
-
-                        if uid_changed or gid_changed:
+                    if platform.system() == "Windows":
+                        if mtime_changed or ctime_changed or atime_changed:
                             if os.path.splitdrive(path)[0] == "":
                                 if no_print is False:
-                                    print("Updating UID, GID for \"%s\"" % os.path.abspath(path))
-                                os.chown(path, uid, gid)
+                                    print(msg_3_dates % os.path.abspath(path))
+                                os.utime(path, (atime, mtime))
+                                setctime(path, ctime)
                                 proc = 1
                             else:
                                 if no_print is False:
-                                    print("Updating UID, GID for \"%s\"" % path)
-                                os.chown(path, uid, gid)
+                                    print(msg_3_dates % path)
+                                os.utime(path, (atime, mtime))
+                                setctime(path, ctime)
+                                proc = 1
+                    else:
+                        if mtime_changed or atime_changed:
+                            if os.path.splitdrive(path)[0] == "":
+                                if no_print is False:
+                                    print(msg_2_dates % os.path.abspath(path))
+                                os.utime(path, (atime, mtime))
+                                proc = 1
+                            else:
+                                if no_print is False:
+                                    print(msg_2_dates % path)
+                                os.utime(path, (atime, mtime))
+                                proc = 1
+                else:
+                    if os.utime in os.supports_follow_symlinks:
+                        if platform.system() == "Windows":
+                            atime, mtime, ctime, mode, mode_changed, atime_changed, mtime_changed, ctime_changed = \
+                                get_attr_for_restore(attr, path)
+                        else:
+                            atime, mtime, mode, mode_changed, atime_changed, mtime_changed, uid, gid, uid_changed, \
+                                gid_changed = get_attr_for_restore(attr, path)
+
+                        if platform.system() != "Windows" and (uid_changed or gid_changed):
+                            if os.path.splitdrive(path)[0] == "":
+                                if no_print is False:
+                                    print(msg_uid_gid % os.path.abspath(path))
+                                os.chown(path, uid, gid, follow_symlinks=False)
+                                proc = 1
+                            else:
+                                if no_print is False:
+                                    print(msg_uid_gid % path)
+                                os.chown(path, uid, gid, follow_symlinks=False)
                                 proc = 1
 
                         if mode_changed:
                             if os.path.splitdrive(path)[0] == "":
                                 if no_print is False:
-                                    print("Updating permissions for \"%s\"" % os.path.abspath(path))
-                                os.chmod(path, mode)
+                                    print(msg_permissions % os.path.abspath(path))
+                                os.chmod(path, mode, follow_symlinks=False)
                                 proc = 1
                             else:
                                 if no_print is False:
-                                    print("Updating permissions for \"%s\"" % path)
-                                os.chmod(path, mode)
+                                    print(msg_permissions % path)
+                                os.chmod(path, mode, follow_symlinks=False)
                                 proc = 1
 
-                        if mtime_changed or atime_changed:
-                            if os.path.splitdrive(path)[0] == "":
-                                if no_print is False:
-                                    print("Updating mtime or atime for \"%s\"" % os.path.abspath(path))
-                                os.utime(path, (atime, mtime))
-                                proc = 1
-                            else:
-                                if no_print is False:
-                                    print("Updating mtime or atime for \"%s\"" % path)
-                                os.utime(path, (atime, mtime))
-                                proc = 1
+                        if platform.system() == "Windows":
+                            if mtime_changed or ctime_changed or atime_changed:
+                                if os.path.splitdrive(path)[0] == "":
+                                    if no_print is False:
+                                        print(msg_3_dates % os.path.abspath(path))
+                                    os.utime(path, (atime, mtime), follow_symlinks=False)
+                                    setctime(path, ctime, follow_symlinks=False)
+                                    proc = 1
+                                else:
+                                    if no_print is False:
+                                        print(msg_3_dates % path)
+                                    os.utime(path, (atime, mtime), follow_symlinks=False)
+                                    setctime(path, ctime, follow_symlinks=False)
+                                    proc = 1
+                        else:
+                            if mtime_changed or atime_changed:
+                                if os.path.splitdrive(path)[0] == "":
+                                    if no_print is False:
+                                        print(msg_2_dates % os.path.abspath(path))
+                                    os.utime(path, (atime, mtime), follow_symlinks=False)
+                                    proc = 1
+                                else:
+                                    if no_print is False:
+                                        print(msg_2_dates % path)
+                                    os.utime(path, (atime, mtime), follow_symlinks=False)
+                                    proc = 1
                     elif no_print is False:
                         if os.path.splitdrive(path)[0] == "":
                             print("Skipping symbolic link \"%s\"" % os.path.abspath(path))  # Python doesn't support
@@ -573,18 +433,18 @@ def apply_file_attrs(attrs, no_print):
                         else:
                             print("Skipping symbolic link \"%s\"" % path)  # Python doesn't support  not following
                             # symlinks in this OS so we skip them
-                elif no_print is False:
-                    if os.path.splitdrive(path)[0] == "":
-                        print("Skipping non-existent item \"%s\"" % os.path.abspath(path))
-                    else:
-                        print("Skipping non-existent item \"%s\"" % path)
-            except OSError as Err:
-                print("\n%s\n" % Err, file=sys.stderr)
+            elif no_print is False:
                 if os.path.splitdrive(path)[0] == "":
-                    errored.append(os.path.abspath(path))
+                    print("Skipping non-existent item \"%s\"" % os.path.abspath(path))
                 else:
-                    errored.append(path)
-                pass
+                    print("Skipping non-existent item \"%s\"" % path)
+        except OSError as Err:
+            print("\n%s\n" % Err, file=sys.stderr)
+            if os.path.splitdrive(path)[0] == "":
+                errored.append(os.path.abspath(path))
+            else:
+                errored.append(path)
+            pass
     if len(errored) != 0:
         print("\nErrored files/folders:\n")
         for line in errored:

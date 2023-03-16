@@ -143,7 +143,7 @@ def collect_file_attrs(path, exclusions, origpath, relative, exclusions_file, ex
                     exclusions_dir[i] = re.escape(s)
                 elif a[0] != "":
                     r = os.path.relpath(s)
-                    exclusions_file[i] = "^" + re.escape(r)
+                    exclusions_dir[i] = "^" + re.escape(r)
                 else:
                     exclusions_dir[i] = re.escape(s)
             regex_excl_dirs = "|".join(exclusions_dir)

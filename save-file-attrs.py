@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from __future__ import annotations
 
 # Utility script for saving and restore the modification times,
 # owners and mode for all files in a tree.
@@ -16,7 +17,8 @@ if platform.system() == "Windows":
     from win32_setctime import setctime
 
 
-def collect_file_attrs(path, exclusions, origpath, relative, exclusions_file, exclusions_dir, no_print):
+def collect_file_attrs(path: str, exclusions: list, origpath: str, relative: bool, exclusions_file: list,
+                       exclusions_dir: list, no_print: bool) -> dict:
     print("\nCollecting attributes, please wait...\n")
 
     curr_working_dir = re.escape(os.getcwd())
@@ -259,7 +261,7 @@ def collect_file_attrs(path, exclusions, origpath, relative, exclusions_file, ex
     return file_attrs
 
 
-def get_attrs(dirpath, file, file_attrs):
+def get_attrs(dirpath: str, file: str, file_attrs: dict):
     path = os.path.join(dirpath, file)
     file_info = os.lstat(path)
     file_attrs[path] = {
@@ -271,7 +273,9 @@ def get_attrs(dirpath, file, file_attrs):
         "gid": file_info.st_gid,
     }
 
-def get_attr_for_restore(attr, path):
+
+def get_attr_for_restore(attr: dict, path: str) -> tuple[str, str, str, str, bool, bool, bool, bool] | \
+                                                   tuple[str, str, str, bool, bool, bool, str, str, bool, bool]:
     atime = attr["atime"]
     mtime = attr["mtime"]
     if platform.system() == "Windows":
@@ -290,20 +294,22 @@ def get_attr_for_restore(attr, path):
     else:
         uid_changed = current_file_info.st_uid != uid
         gid_changed = current_file_info.st_gid != gid
-    
+
     if platform.system() == "Windows":
         return atime, mtime, ctime, mode, mode_changed, atime_changed, mtime_changed, ctime_changed
     else:
         return atime, mtime, mode, mode_changed, atime_changed, mtime_changed, uid, gid, uid_changed, gid_changed
 
-def apply_file_attrs(attrs, no_print):
+
+def apply_file_attrs(attrs: dict, no_print: bool, c_to_a: bool, ignore_fs: bool):
     proc = 0
     errored = []  # to store errored files/folders
-    
+
     msg_uid_gid = "Updating UID, GID for \"%s\""
     msg_permissions = "Updating permissions for \"%s\""
     msg_3_dates = "Updating dates for \"%s\""
     msg_2_dates = "Updating mtime or atime for \"%s\""
+    msg_copy_create = "Copying dates for \"%s\""
 
     for path in sorted(attrs):
         attr = attrs[path]
@@ -318,55 +324,49 @@ def apply_file_attrs(attrs, no_print):
                             gid_changed = get_attr_for_restore(attr, path)
 
                     if platform.system() != "Windows" and (uid_changed or gid_changed):
-                        if os.path.splitdrive(path)[0] == "":
-                            if no_print is False:
+                        if no_print is False:
+                            if os.path.splitdrive(path)[0] == "":
                                 print(msg_uid_gid % os.path.abspath(path))
-                            os.chown(path, uid, gid)
-                            proc = 1
-                        else:
-                            if no_print is False:
+                            else:
                                 print(msg_uid_gid % path)
-                            os.chown(path, uid, gid)
-                            proc = 1
+                        os.chown(path, uid, gid)
+                        proc = 1
 
                     if mode_changed:
-                        if os.path.splitdrive(path)[0] == "":
-                            if no_print is False:
-                                print(msg_permissions % os.path.abspath(path))
-                            os.chmod(path, mode)
-                            proc = 1
-                        else:
-                            if no_print is False:
-                                print(msg_permissions % path)
-                            os.chmod(path, mode)
-                            proc = 1
-
-                    if platform.system() == "Windows":
-                        if mtime_changed or ctime_changed or atime_changed:
+                        if no_print is False:
                             if os.path.splitdrive(path)[0] == "":
-                                if no_print is False:
-                                    print(msg_3_dates % os.path.abspath(path))
-                                os.utime(path, (atime, mtime))
-                                setctime(path, ctime)
-                                proc = 1
+                                print(msg_permissions % os.path.abspath(path))
                             else:
-                                if no_print is False:
+                                print(msg_permissions % path)
+                        os.chmod(path, mode)
+                        proc = 1
+
+                    if platform.system() == "Windows" and ignore_fs is False:
+                        if mtime_changed or ctime_changed or atime_changed:
+                            if no_print is False:
+                                if os.path.splitdrive(path)[0] == "":
+                                    print(msg_3_dates % os.path.abspath(path))
+                                else:
                                     print(msg_3_dates % path)
-                                os.utime(path, (atime, mtime))
-                                setctime(path, ctime)
-                                proc = 1
+                            os.utime(path, (atime, mtime))
+                            setctime(path, ctime)
+                            proc = 1
                     else:
                         if mtime_changed or atime_changed:
-                            if os.path.splitdrive(path)[0] == "":
-                                if no_print is False:
+                            if no_print is False:
+                                if os.path.splitdrive(path)[0] == "":
                                     print(msg_2_dates % os.path.abspath(path))
-                                os.utime(path, (atime, mtime))
-                                proc = 1
-                            else:
-                                if no_print is False:
+                                else:
                                     print(msg_2_dates % path)
-                                os.utime(path, (atime, mtime))
-                                proc = 1
+                            os.utime(path, (atime, mtime))
+                            proc = 1
+                    if c_to_a:
+                        if no_print is False:
+                            if os.path.splitdrive(path)[0] == "":
+                                print(msg_copy_create % os.path.abspath(path))
+                            else:
+                                print(msg_copy_create % path)
+                        os.utime(path, (ctime, mtime))
                 else:
                     if os.utime in os.supports_follow_symlinks:
                         if platform.system() == "Windows":
@@ -377,55 +377,49 @@ def apply_file_attrs(attrs, no_print):
                                 gid_changed = get_attr_for_restore(attr, path)
 
                         if platform.system() != "Windows" and (uid_changed or gid_changed):
-                            if os.path.splitdrive(path)[0] == "":
-                                if no_print is False:
+                            if no_print is False:
+                                if os.path.splitdrive(path)[0] == "":
                                     print(msg_uid_gid % os.path.abspath(path))
-                                os.chown(path, uid, gid, follow_symlinks=False)
-                                proc = 1
-                            else:
-                                if no_print is False:
+                                else:
                                     print(msg_uid_gid % path)
-                                os.chown(path, uid, gid, follow_symlinks=False)
-                                proc = 1
+                            os.chown(path, uid, gid, follow_symlinks=False)
+                            proc = 1
 
                         if mode_changed:
-                            if os.path.splitdrive(path)[0] == "":
-                                if no_print is False:
-                                    print(msg_permissions % os.path.abspath(path))
-                                os.chmod(path, mode, follow_symlinks=False)
-                                proc = 1
-                            else:
-                                if no_print is False:
-                                    print(msg_permissions % path)
-                                os.chmod(path, mode, follow_symlinks=False)
-                                proc = 1
-
-                        if platform.system() == "Windows":
-                            if mtime_changed or ctime_changed or atime_changed:
+                            if no_print is False:
                                 if os.path.splitdrive(path)[0] == "":
-                                    if no_print is False:
-                                        print(msg_3_dates % os.path.abspath(path))
-                                    os.utime(path, (atime, mtime), follow_symlinks=False)
-                                    setctime(path, ctime, follow_symlinks=False)
-                                    proc = 1
+                                    print(msg_permissions % os.path.abspath(path))
                                 else:
-                                    if no_print is False:
+                                    print(msg_permissions % path)
+                            os.chmod(path, mode, follow_symlinks=False)
+                            proc = 1
+
+                        if platform.system() == "Windows" and ignore_fs is False:
+                            if mtime_changed or ctime_changed or atime_changed:
+                                if no_print is False:
+                                    if os.path.splitdrive(path)[0] == "":
+                                        print(msg_3_dates % os.path.abspath(path))
+                                    else:
                                         print(msg_3_dates % path)
-                                    os.utime(path, (atime, mtime), follow_symlinks=False)
-                                    setctime(path, ctime, follow_symlinks=False)
-                                    proc = 1
+                                os.utime(path, (atime, mtime), follow_symlinks=False)
+                                setctime(path, ctime, follow_symlinks=False)
+                                proc = 1
                         else:
                             if mtime_changed or atime_changed:
-                                if os.path.splitdrive(path)[0] == "":
-                                    if no_print is False:
+                                if no_print is False:
+                                    if os.path.splitdrive(path)[0] == "":
                                         print(msg_2_dates % os.path.abspath(path))
-                                    os.utime(path, (atime, mtime), follow_symlinks=False)
-                                    proc = 1
-                                else:
-                                    if no_print is False:
+                                    else:
                                         print(msg_2_dates % path)
-                                    os.utime(path, (atime, mtime), follow_symlinks=False)
-                                    proc = 1
+                                os.utime(path, (atime, mtime), follow_symlinks=False)
+                                proc = 1
+                        if c_to_a:
+                            if no_print is False:
+                                if os.path.splitdrive(path)[0] == "":
+                                    print(msg_copy_create % os.path.abspath(path))
+                                else:
+                                    print(msg_copy_create % path)
+                            os.utime(path, (ctime, mtime), follow_symlinks=False)
                     elif no_print is False:
                         if os.path.splitdrive(path)[0] == "":
                             print("Skipping symbolic link \"%s\"" % os.path.abspath(path))  # Python doesn't support
@@ -456,7 +450,8 @@ def apply_file_attrs(attrs, no_print):
         sys.exit(0)
 
 
-def save_attrs(path_to_save, output, relative, exclusions, exclusions_file, exclusions_dir, no_print):
+def save_attrs(path_to_save: str, output: str, relative: bool, exclusions: list | None, exclusions_file: list | None,
+               exclusions_dir: list | None, no_print: bool):
     if path_to_save.endswith('"'):
         path_to_save = path_to_save[:-1] + os.path.sep  # Windows escapes the quote if the command ends in \" so this
         # fixes that, or at least it does if this argument is the last one, otherwise the output argument will eat
@@ -540,7 +535,7 @@ def save_attrs(path_to_save, output, relative, exclusions, exclusions_file, excl
         os.chdir(origdir)
 
 
-def restore_attrs(input_file, working_path, no_print):
+def restore_attrs(input_file: str, working_path: str, no_print: bool, c_to_a: bool, ignore_fs: bool):
     attr_file_name = input_file
 
     if attr_file_name.endswith('"'):
@@ -568,7 +563,7 @@ def restore_attrs(input_file, working_path, no_print):
             sys.exit(1)
         if working_path != os.curdir:
             os.chdir(working_path)
-        apply_file_attrs(attrs, no_print)
+        apply_file_attrs(attrs, no_print, c_to_a, ignore_fs)
     except KeyboardInterrupt:
         print("Shutdown requested... exiting", file=sys.stderr)
         sys.exit(1)
@@ -623,6 +618,11 @@ def main():
                                 metavar="%PATH%", default=os.curdir, nargs="?")
     restore_parser.add_argument("-np", "--np", help="Don't print modified or skipped files and folders (Optional)",
                                 action="store_true")
+    restore_parser.add_argument("-cta", "--cta", help="Copy the creation dates to accessed dates (Optional)",
+                                action="store_true")
+    restore_parser.add_argument("-ifs", "--ifs", help="Ignore filesystem and don't modify creation dates, useful when "
+                                                      "working with non-NTFS network shares in Windows (Optional)",
+                                action="store_true")
     args = parser.parse_args()
 
     if args.mode == "save":
@@ -644,7 +644,7 @@ def main():
             print("\nWARNING: You have used an empty value for file exclusions, every file will be excluded.\n")
         save_attrs(args.p, args.o, args.r, args.ex, args.ef, args.ed, args.np)
     elif args.mode == "restore":
-        restore_attrs(args.i, args.wp, args.np)
+        restore_attrs(args.i, args.wp, args.np, args.cta, args.ifs)
     elif args.mode is None:
         print("You have to use either save or restore.\nSee the help.")
         sys.exit(3)

@@ -57,7 +57,7 @@ def collect_file_attrs(working_path: str,
                        orig_working_path: str,
                        relative: bool,
                        exclusions: Optional[List[str]],
-                       exclusions_file: Optional[str],
+                       exclusions_file: Optional[List[str]],
                        no_print: bool,
                        exclusions_ignore_case: bool) -> dict:
     """
@@ -66,7 +66,7 @@ def collect_file_attrs(working_path: str,
         :param orig_working_path: Original path where the attributes will be saved from
         :param relative: Whether to store the paths as relatives to the root drive
         :param exclusions: List of pattern rules to exclude.
-        :param exclusions_file: Path to ignore item.
+        :param exclusions_file: List of paths of ignore-files.
         :param no_print: Whether to print not found / skipping messages.
         :param exclusions_ignore_case: Ignore casing with exclusion rules.
     """
@@ -114,21 +114,22 @@ def collect_file_attrs(working_path: str,
     return file_attrs
 
 
-def compile_ignore_rules(exclusions_file: Optional[str],
+def compile_ignore_rules(exclusions_file: Optional[List[str]],
                          exclusions: Optional[List[str]],
                          exclusions_ignore_case: bool) -> Optional[PathSpec]:
     pattern_rules = []
 
     if exclusions_file is not None:
-        with open(exclusions_file, "r", encoding="utf8") as stream:
-            if exclusions_ignore_case:
-                pattern_rules = [pattern.lower() for pattern in stream.read().splitlines()]
-            else:
-                pattern_rules = stream.read().splitlines()
+        for ignore_file in exclusions_file:
+            with open(ignore_file, "r", encoding="utf8", errors="backslashreplace") as stream:
+                if exclusions_ignore_case:
+                    pattern_rules += [pattern.lower() for pattern in stream.read().splitlines()]
+                else:
+                    pattern_rules += stream.read().splitlines()
     if exclusions is not None:
         if exclusions_ignore_case:
             exclusions = [pattern.lower() for pattern in exclusions]
-        pattern_rules.extend(exclusions)
+        pattern_rules += exclusions
 
     if len(pattern_rules) != 0:
         return PathSpec.from_lines("gitwildmatch", pattern_rules)
@@ -202,7 +203,7 @@ def apply_file_attrs(attrs: dict,
                      ignore_filesystem: bool,
                      ignore_permissions: bool,
                      exclusions: Optional[List[str]],
-                     exclusions_file: Optional[str],
+                     exclusions_file: Optional[List[str]],
                      exclusions_ignore_case: bool,
                      skip_archive: bool,
                      skip_hidden: bool,
@@ -476,7 +477,7 @@ def save_attrs(working_path: str,
                output_file: str,
                relative: bool,
                exclusions: Optional[List[str]],
-               exclusions_file: Optional[str],
+               exclusions_file: Optional[List[str]],
                no_print: bool,
                exclusions_ignore_case: bool) -> None:
     """
@@ -484,7 +485,7 @@ def save_attrs(working_path: str,
     :param output_file: Path to the file where to save the attributes to
     :param relative: Whether to store the paths as relatives to the root drive
     :param exclusions: List of pattern rules to exclude
-    :param exclusions_file: Path to ignore-file.
+    :param exclusions_file: List of paths of ignore-files.
     :param no_print: Whether to print not found / skipped symlinks messages
     :param exclusions_ignore_case: Ignore casing with exclusion rules.
     """
@@ -575,7 +576,7 @@ def restore_attrs(input_file: str,
                   ignore_filesystem: bool,
                   ignore_permissions: bool,
                   exclusions: Optional[List[str]],
-                  exclusions_file: Optional[str],
+                  exclusions_file: Optional[List[str]],
                   exclusions_ignore_case: bool,
                   skip_archive: bool,
                   skip_hidden: bool,
@@ -658,7 +659,7 @@ def main():
     save_parser.add_argument("-ef", "--ignore-file",
                              help="Ignore file containing pattern rules, same format as git ignore rules. (Optional)",
                              metavar="%IGNORE-FILE%",
-                             nargs="?")
+                             nargs="*")
     save_parser.add_argument("-eic", "--exclusions-ignore-case",
                              help="Ignore casing for exclusions.",
                              action="store_true")
@@ -732,12 +733,14 @@ def main():
     working_path: str = args.working_path
     no_print: bool = args.no_print
     exclusions: Optional[List[str]] = args.exclude
-    exclusions_file: Optional[str] = args.ignore_file
+    exclusions_file: Optional[List[str]] = args.ignore_file
     exclusions_ignore_case: bool = args.exclusions_ignore_case
 
-    if exclusions_file is not None and not os.path.isfile(exclusions_file):
-        print("Specified ignore path is not a file or doesn't exist, exiting...")
-        sys.exit(1)
+    if exclusions_file is not None:
+        for file in exclusions_file:
+            if not os.path.isfile(file):
+                print("Specified ignore path is not a file or doesn't exist, exiting...")
+                sys.exit(1)
 
     if mode == "save":
         output_file: str = args.output

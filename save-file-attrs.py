@@ -198,12 +198,16 @@ def get_attr_for_restore(attr: dict,
 
 def apply_file_attrs(attrs: dict,
                      no_print: bool,
-                     c_to_a: bool,
-                     ignore_fs: bool,
+                     copy_to_access: bool,
+                     ignore_filesystem: bool,
                      ignore_permissions: bool,
                      exclusions: Optional[List[str]],
                      exclusions_file: Optional[str],
-                     exclusions_ignore_case: bool):
+                     exclusions_ignore_case: bool,
+                     skip_archive: bool,
+                     skip_hidden: bool,
+                     skip_readonly: bool,
+                     skip_system: bool):
     proc: int = 0
     errored: List[str] = []  # to store errored files/folders
 
@@ -270,11 +274,11 @@ def apply_file_attrs(attrs: dict,
                         if stored_data.mtime_changed or stored_data.atime_changed:
                             os.utime(item_path_orig, (stored_data.atime, stored_data.mtime))
                             proc = 1
-                        if stored_data.ctime_changed and SYSTEM_PLATFORM == "Windows" and not ignore_fs:
+                        if stored_data.ctime_changed and SYSTEM_PLATFORM == "Windows" and not ignore_filesystem:
                             setctime(item_path_orig, stored_data.ctime)
                             proc = 1
 
-                    if c_to_a and stored_data.ctime != stored_data.atime:
+                    if copy_to_access and stored_data.ctime != stored_data.atime:
                         os.utime(item_path_orig, (stored_data.ctime, stored_data.mtime))
                 else:
                     if os.utime in os.supports_follow_symlinks:
@@ -314,11 +318,11 @@ def apply_file_attrs(attrs: dict,
                             if stored_data.mtime_changed or stored_data.atime_changed:
                                 os.utime(item_path_orig, (stored_data.atime, stored_data.mtime), follow_symlinks=False)
                                 proc = 1
-                            if stored_data.ctime_changed and SYSTEM_PLATFORM == "Windows" and not ignore_fs:
+                            if stored_data.ctime_changed and SYSTEM_PLATFORM == "Windows" and not ignore_filesystem:
                                 setctime(item_path_orig, stored_data.ctime, follow_symlinks=False)
                                 proc = 1
 
-                        if c_to_a and stored_data.ctime != stored_data.atime:
+                        if copy_to_access and stored_data.ctime != stored_data.atime:
                             os.utime(item_path_orig, (stored_data.ctime, stored_data.mtime), follow_symlinks=False)
                     elif not no_print:
                         print(f"Skipping symbolic link \"{item_path_orig}\"")  # Python doesn't support
@@ -330,28 +334,28 @@ def apply_file_attrs(attrs: dict,
                     attribs_to_set: int = 0
                     attribs_to_unset: int = 0
 
-                    if stored_data.archive_changed:
+                    if stored_data.archive_changed and not skip_archive:
                         changed_win_attribs.append("ARCHIVE")
                         if stored_data.archive:
                             attribs_to_set |= stat.FILE_ATTRIBUTE_ARCHIVE
                         else:
                             attribs_to_unset |= stat.FILE_ATTRIBUTE_ARCHIVE
 
-                    if stored_data.hidden_changed:
+                    if stored_data.hidden_changed and not skip_hidden:
                         changed_win_attribs.append("HIDDEN")
                         if stored_data.hidden:
                             attribs_to_set |= stat.FILE_ATTRIBUTE_HIDDEN
                         else:
                             attribs_to_unset |= stat.FILE_ATTRIBUTE_HIDDEN
 
-                    if stored_data.readonly_changed:
+                    if stored_data.readonly_changed and not skip_readonly:
                         changed_win_attribs.append("READ-ONLY")
                         if stored_data.readonly:
                             attribs_to_set |= stat.FILE_ATTRIBUTE_READONLY
                         else:
                             attribs_to_unset |= stat.FILE_ATTRIBUTE_READONLY
 
-                    if stored_data.system_changed:
+                    if stored_data.system_changed and not skip_system:
                         changed_win_attribs.append("SYSTEM")
                         if stored_data.system:
                             attribs_to_set |= stat.FILE_ATTRIBUTE_SYSTEM
@@ -511,12 +515,16 @@ def save_attrs(working_path: str,
 def restore_attrs(input_file: str,
                   working_path: str,
                   no_print: bool,
-                  c_to_a: bool,
-                  ignore_fs: bool,
+                  copy_to_access: bool,
+                  ignore_filesystem: bool,
                   ignore_permissions: bool,
                   exclusions: Optional[List[str]],
                   exclusions_file: Optional[str],
-                  exclusions_ignore_case: bool):
+                  exclusions_ignore_case: bool,
+                  skip_archive: bool,
+                  skip_hidden: bool,
+                  skip_readonly: bool,
+                  skip_system: bool):
     attr_file_name = input_file
 
     if attr_file_name.endswith('"'):
@@ -544,8 +552,18 @@ def restore_attrs(input_file: str,
             sys.exit(1)
         if working_path != os.curdir:
             os.chdir(working_path)
-        apply_file_attrs(attrs, no_print, c_to_a, ignore_fs, ignore_permissions, exclusions, exclusions_file,
-                         exclusions_ignore_case)
+        apply_file_attrs(attrs=attrs,
+                         no_print=no_print,
+                         copy_to_access=copy_to_access,
+                         ignore_filesystem=ignore_filesystem,
+                         ignore_permissions=ignore_permissions,
+                         exclusions=exclusions,
+                         exclusions_file=exclusions_file,
+                         exclusions_ignore_case=exclusions_ignore_case,
+                         skip_archive=skip_archive,
+                         skip_hidden=skip_hidden,
+                         skip_readonly=skip_readonly,
+                         skip_system=skip_system)
     except KeyboardInterrupt:
         print("Shutdown requested... exiting", file=sys.stderr)
         sys.exit(1)
@@ -631,6 +649,18 @@ def main():
     restore_parser.add_argument("-eic", "--exclusions-ignore-case",
                                 help="Ignore casing for exclusions.",
                                 action="store_true")
+    restore_parser.add_argument("-sa", "--skip-archive",
+                                help="Skip setting the \"archive\" attribute.",
+                                action="store_true")
+    restore_parser.add_argument("-sh", "--skip-hidden",
+                                help="Skip setting the \"hidden\" attribute.",
+                                action="store_true")
+    restore_parser.add_argument("-sr", "--skip-readonly",
+                                help="Skip setting the \"read-only\" attribute.",
+                                action="store_true")
+    restore_parser.add_argument("-ss", "--skip-system",
+                                help="Skip setting the \"system\" attribute.",
+                                action="store_true")
     args = parser.parse_args()
 
     # Set args variables
@@ -658,9 +688,24 @@ def main():
         copy_to_access: bool = args.copy_to_access
         ignore_filesystem: bool = args.ignore_filesystem
         ignore_permissions: bool = args.ignore_permissions
+        skip_archive: bool = args.skip_archive
+        skip_hidden: bool = args.skip_hidden
+        skip_readonly: bool = args.skip_readonly
+        skip_system: bool = args.skip_system
 
-        restore_attrs(input_file, working_path, no_print, copy_to_access, ignore_filesystem, ignore_permissions,
-                      exclusions, exclusions_file, exclusions_ignore_case)
+        restore_attrs(input_file=input_file,
+                      working_path=working_path,
+                      no_print=no_print,
+                      copy_to_access=copy_to_access,
+                      ignore_filesystem=ignore_filesystem,
+                      ignore_permissions=ignore_permissions,
+                      exclusions=exclusions,
+                      exclusions_file=exclusions_file,
+                      exclusions_ignore_case=exclusions_ignore_case,
+                      skip_archive=skip_archive,
+                      skip_hidden=skip_hidden,
+                      skip_readonly=skip_readonly,
+                      skip_system=skip_system)
 
     if mode is None:
         print("You have to use either save or restore.\nRead the help.")

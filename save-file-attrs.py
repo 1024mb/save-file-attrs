@@ -667,6 +667,10 @@ def main():
 
     mode: str = args.mode
 
+    if mode is None:
+        print("You have to use either save or restore.\nRead the help.")
+        sys.exit(3)
+
     working_path: str = args.working_path
     no_print: bool = args.no_print
     exclusions: Optional[List[str]] = args.exclude
@@ -706,10 +710,6 @@ def main():
                       skip_hidden=skip_hidden,
                       skip_readonly=skip_readonly,
                       skip_system=skip_system)
-
-    if mode is None:
-        print("You have to use either save or restore.\nRead the help.")
-        sys.exit(3)
 
 
 if __name__ == "__main__":

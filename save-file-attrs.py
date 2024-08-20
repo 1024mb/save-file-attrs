@@ -14,7 +14,7 @@ import platform
 import sys
 from dataclasses import dataclass
 from string import Template
-from typing import Optional, List
+from typing import Optional, List, Iterator, Tuple, Dict
 
 from pathspec import PathSpec
 
@@ -62,8 +62,8 @@ def collect_file_attrs(working_path: str,
                        exclusions_ignore_case: bool) -> dict:
     """
         :param working_path: Path where the attributes will be saved from.
-            If relative is set to true then this should be a current dir pointer (commonly a dot ".")
-        :param orig_working_path: Original path where the attributes will be save from
+            If relative is set to true, then this should be a current dir pointer (commonly a dot ".")
+        :param orig_working_path: Original path where the attributes will be saved from
         :param relative: Whether to store the paths as relatives to the root drive
         :param exclusions: List of pattern rules to exclude.
         :param exclusions_file: Path to ignore item.
@@ -74,11 +74,11 @@ def collect_file_attrs(working_path: str,
     print("\nCollecting attributes, please wait...", end="\n\n")
 
     if relative is False and orig_working_path == ".":
-        dirs = os.walk(os.getcwd())
+        dirs: Iterator[Tuple[str, list, list]] = os.walk(os.getcwd())
     else:
         dirs = os.walk(working_path)
 
-    file_attrs = {}
+    file_attrs: Dict[str, dict] = {}
 
     compiled_rules: Optional[PathSpec] = compile_ignore_rules(exclusions_file=exclusions_file,
                                                               exclusions=exclusions,
@@ -208,13 +208,18 @@ def apply_file_attrs(attrs: dict,
                      skip_hidden: bool,
                      skip_readonly: bool,
                      skip_system: bool):
-    proc: int = 0
+    processed: bool = False
     errored: List[str] = []  # to store errored files/folders
+    optional_args: dict[str, bool] = {}
+    symlink_support = os.utime in os.supports_follow_symlinks
 
     msg_uid_gid = Template("Updating $changed_ids for \"$path\"")
     msg_permissions = Template("Updating permissions for \"$path\"")
     msg_dates = Template("Updating $dates timestamp(s) for \"$path\"")
     msg_win_attribs = Template("Updating $win_attribs attribute(s) for \"$path\"")
+
+    if symlink_support:
+        optional_args["follow_symlinks"] = False
 
     compiled_rules: Optional[PathSpec] = compile_ignore_rules(exclusions_file=exclusions_file,
                                                               exclusions=exclusions,
@@ -234,147 +239,60 @@ def apply_file_attrs(attrs: dict,
             continue
 
         try:
-            if os.path.lexists(item_path_orig):
-                stored_data = get_attr_for_restore(attr, item_path_orig)
+            if not os.path.lexists(item_path_orig):
+                if not no_print:
+                    print(f"Skipping non-existent item \"{item_path_orig}\"")
+                continue
 
-                if not os.path.islink(item_path_orig):
-                    if SYSTEM_PLATFORM != "Windows":
-                        changed_ids = []
-                        if stored_data.uid_changed:
-                            changed_ids.append("UID")
-                        if stored_data.gid_changed:
-                            changed_ids.append("GID")
+            stored_data = get_attr_for_restore(attr, item_path_orig)
 
-                        if len(changed_ids) != 0:
-                            if not no_print:
-                                print(msg_uid_gid.substitute(path=item_path_orig, changed_ids=" & ".join(changed_ids)))
+            if (not os.path.islink(item_path_orig) or
+                    (os.path.islink(item_path_orig) and symlink_support)):
+                if SYSTEM_PLATFORM != "Windows":
+                    # Does nothing in Windows
+                    if set_uid_gid(item_path=item_path_orig,
+                                   stored_data=stored_data,
+                                   no_print=no_print,
+                                   msg_uid_gid=msg_uid_gid,
+                                   optional_arg=optional_args):
+                        processed = True
 
-                            os.chown(item_path_orig, stored_data.uid, stored_data.gid)
-                            proc = 1
-
-                        # st_mode on Windows is pretty useless, so we only perform this if the current OS is not Windows
-                        if stored_data.mode_changed and not ignore_permissions:
-                            if not no_print:
-                                print(msg_permissions.substitute(path=item_path_orig))
-                            os.chmod(item_path_orig, stored_data.mode)
-                            proc = 1
-
-                    changed_times = []
-                    if stored_data.mtime_changed:
-                        changed_times.append("modification")
-                    if stored_data.atime_changed:
-                        changed_times.append("accessed")
-                    if stored_data.ctime_changed:
-                        changed_times.append("creation")
-
-                    if len(changed_times) != 0:
-                        if not no_print:
-                            print(msg_dates.substitute(path=item_path_orig, dates=" & ".join(changed_times)))
-
-                        if stored_data.mtime_changed or stored_data.atime_changed:
-                            os.utime(item_path_orig, (stored_data.atime, stored_data.mtime))
-                            proc = 1
-                        if stored_data.ctime_changed and SYSTEM_PLATFORM == "Windows" and not ignore_filesystem:
-                            setctime(item_path_orig, stored_data.ctime)
-                            proc = 1
-
-                    if copy_to_access and stored_data.ctime != stored_data.atime:
-                        os.utime(item_path_orig, (stored_data.ctime, stored_data.mtime))
+                    # st_mode on Windows is pretty useless, so we only perform this if the current OS is not Windows
+                    if set_permissions(item_path_orig=item_path_orig,
+                                       stored_data=stored_data,
+                                       no_print=no_print,
+                                       ignore_permissions=ignore_permissions,
+                                       msg_permissions=msg_permissions,
+                                       optional_arg=optional_args):
+                        processed = True
                 else:
-                    if os.utime in os.supports_follow_symlinks:
-                        if SYSTEM_PLATFORM != "Windows":
-                            changed_ids = []
-                            if stored_data.uid_changed:
-                                changed_ids.append("UID")
-                            if stored_data.gid_changed:
-                                changed_ids.append("GID")
+                    if process_win_attributes(item_path=item_path_orig,
+                                              stored_data=stored_data,
+                                              skip_archive=skip_archive,
+                                              skip_hidden=skip_hidden,
+                                              skip_readonly=skip_readonly,
+                                              skip_system=skip_system,
+                                              no_print=no_print,
+                                              errored=errored,
+                                              msg_win_attribs=msg_win_attribs):
+                        processed = True
 
-                            if len(changed_ids) != 0:
-                                if not no_print:
-                                    print(msg_uid_gid.substitute(path=item_path_orig,
-                                                                 changed_ids=" & ".join(changed_ids)))
+                if set_timestamps(item_path=item_path_orig,
+                                  stored_data=stored_data,
+                                  no_print=no_print,
+                                  msg_dates=msg_dates,
+                                  ignore_filesystem=ignore_filesystem,
+                                  optional_arg=optional_args):
+                    processed = True
 
-                                os.chown(item_path_orig, stored_data.uid, stored_data.gid, follow_symlinks=False)
-                                proc = 1
-
-                            if stored_data.mode_changed and not ignore_permissions:
-                                if not no_print:
-                                    print(msg_permissions.substitute(path=item_path_orig))
-                                os.chmod(item_path_orig, stored_data.mode, follow_symlinks=False)
-                                proc = 1
-
-                        changed_times = []
-                        if stored_data.mtime_changed:
-                            changed_times.append("modification")
-                        if stored_data.atime_changed:
-                            changed_times.append("accessed")
-                        if stored_data.ctime_changed:
-                            changed_times.append("creation")
-
-                        if len(changed_times) != 0:
-                            if not no_print:
-                                print(msg_dates.substitute(path=item_path_orig, dates=" & ".join(changed_times)))
-
-                            if stored_data.mtime_changed or stored_data.atime_changed:
-                                os.utime(item_path_orig, (stored_data.atime, stored_data.mtime), follow_symlinks=False)
-                                proc = 1
-                            if stored_data.ctime_changed and SYSTEM_PLATFORM == "Windows" and not ignore_filesystem:
-                                setctime(item_path_orig, stored_data.ctime, follow_symlinks=False)
-                                proc = 1
-
-                        if copy_to_access and stored_data.ctime != stored_data.atime:
-                            os.utime(item_path_orig, (stored_data.ctime, stored_data.mtime), follow_symlinks=False)
-                    elif not no_print:
-                        print(f"Skipping symbolic link \"{item_path_orig}\"")  # Python doesn't support
-                        # not following symlinks in this OS so we skip them
-
-                # Can't set attributes for symbolic links in Windows from Python
-                if SYSTEM_PLATFORM == "Windows" and not os.path.islink(item_path_orig):
-                    changed_win_attribs: List[str] = []
-                    attribs_to_set: int = 0
-                    attribs_to_unset: int = 0
-
-                    if stored_data.archive_changed and not skip_archive:
-                        changed_win_attribs.append("ARCHIVE")
-                        if stored_data.archive:
-                            attribs_to_set |= stat.FILE_ATTRIBUTE_ARCHIVE
-                        else:
-                            attribs_to_unset |= stat.FILE_ATTRIBUTE_ARCHIVE
-
-                    if stored_data.hidden_changed and not skip_hidden:
-                        changed_win_attribs.append("HIDDEN")
-                        if stored_data.hidden:
-                            attribs_to_set |= stat.FILE_ATTRIBUTE_HIDDEN
-                        else:
-                            attribs_to_unset |= stat.FILE_ATTRIBUTE_HIDDEN
-
-                    if stored_data.readonly_changed and not skip_readonly:
-                        changed_win_attribs.append("READ-ONLY")
-                        if stored_data.readonly:
-                            attribs_to_set |= stat.FILE_ATTRIBUTE_READONLY
-                        else:
-                            attribs_to_unset |= stat.FILE_ATTRIBUTE_READONLY
-
-                    if stored_data.system_changed and not skip_system:
-                        changed_win_attribs.append("SYSTEM")
-                        if stored_data.system:
-                            attribs_to_set |= stat.FILE_ATTRIBUTE_SYSTEM
-                        else:
-                            attribs_to_unset |= stat.FILE_ATTRIBUTE_SYSTEM
-
-                    if len(changed_win_attribs) != 0:
-                        proc = 1
-                        if not no_print:
-                            print(msg_win_attribs.substitute(path=item_path_orig,
-                                                             win_attribs=" & ".join(changed_win_attribs)))
-
-                        if not modify_win_attribs(path=item_path_orig,
-                                                  attribs_to_set=attribs_to_set,
-                                                  attribs_to_unset=attribs_to_unset):
-                            print(f"Error setting Windows attributes for \"{item_path_orig}\"")
-                            errored.append(item_path_orig)
+                if copy_creation_to_accessed(item_path=item_path_orig,
+                                             stored_data=stored_data,
+                                             copy_to_access=copy_to_access,
+                                             optional_arg=optional_args):
+                    processed = True
             elif not no_print:
-                print(f"Skipping non-existent item \"{item_path_orig}\"")
+                print(f"Skipping symbolic link \"{item_path_orig}\"")  # Python doesn't support
+                # not following symlinks in this OS so we skip them
         except OSError as Err:
             print(f"\n{Err}", end="\n\n", file=sys.stderr)
             errored.append(item_path_orig)
@@ -385,10 +303,148 @@ def apply_file_attrs(attrs: dict,
             print(line + "\n")
         print(f"\nThere were {len(errored)} errors while restoring the attributes.")
         sys.exit(1)
-    elif proc == 0:
+    elif not processed:
         print("Nothing to change.")
 
     sys.exit(0)
+
+
+def set_timestamps(item_path: str,
+                   stored_data: ResultAttr,
+                   no_print: bool,
+                   msg_dates: Template,
+                   ignore_filesystem: bool,
+                   optional_arg: dict[str, bool]) -> bool:
+    changed_times = []
+
+    if stored_data.mtime_changed:
+        changed_times.append("modification")
+    if stored_data.atime_changed:
+        changed_times.append("accessed")
+    if stored_data.ctime_changed:
+        changed_times.append("creation")
+
+    if len(changed_times) != 0:
+        if not no_print:
+            print(msg_dates.substitute(path=item_path, dates=" & ".join(changed_times)))
+
+        if stored_data.mtime_changed or stored_data.atime_changed:
+            os.utime(item_path, (stored_data.atime, stored_data.mtime), **optional_arg)
+            return True
+        if stored_data.ctime_changed and SYSTEM_PLATFORM == "Windows" and not ignore_filesystem:
+            setctime(item_path, stored_data.ctime, **optional_arg)
+            return True
+
+    return False
+
+
+def copy_creation_to_accessed(item_path: str,
+                              stored_data: ResultAttr,
+                              copy_to_access: bool,
+                              optional_arg: dict[str, bool]):
+    if copy_to_access and stored_data.ctime != stored_data.atime:
+        os.utime(item_path, (stored_data.ctime, stored_data.mtime), **optional_arg)
+        return True
+    else:
+        return False
+
+
+def process_win_attributes(item_path: str,
+                           stored_data: ResultAttr,
+                           skip_archive: bool,
+                           skip_hidden: bool,
+                           skip_readonly: bool,
+                           skip_system: bool,
+                           no_print: bool,
+                           msg_win_attribs: Template,
+                           errored: List[str]) -> bool:
+    """
+    Returns True if attributes have been processed.
+    """
+
+    # Can't set attributes for symbolic links in Windows from Python
+    if SYSTEM_PLATFORM == "Windows" and not os.path.islink(item_path):
+        changed_win_attribs: List[str] = []
+        attribs_to_set: int = 0
+        attribs_to_unset: int = 0
+
+        if stored_data.archive_changed and not skip_archive:
+            changed_win_attribs.append("ARCHIVE")
+            if stored_data.archive:
+                attribs_to_set |= stat.FILE_ATTRIBUTE_ARCHIVE
+            else:
+                attribs_to_unset |= stat.FILE_ATTRIBUTE_ARCHIVE
+
+        if stored_data.hidden_changed and not skip_hidden:
+            changed_win_attribs.append("HIDDEN")
+            if stored_data.hidden:
+                attribs_to_set |= stat.FILE_ATTRIBUTE_HIDDEN
+            else:
+                attribs_to_unset |= stat.FILE_ATTRIBUTE_HIDDEN
+
+        if stored_data.readonly_changed and not skip_readonly:
+            changed_win_attribs.append("READ-ONLY")
+            if stored_data.readonly:
+                attribs_to_set |= stat.FILE_ATTRIBUTE_READONLY
+            else:
+                attribs_to_unset |= stat.FILE_ATTRIBUTE_READONLY
+
+        if stored_data.system_changed and not skip_system:
+            changed_win_attribs.append("SYSTEM")
+            if stored_data.system:
+                attribs_to_set |= stat.FILE_ATTRIBUTE_SYSTEM
+            else:
+                attribs_to_unset |= stat.FILE_ATTRIBUTE_SYSTEM
+
+        if len(changed_win_attribs) != 0:
+            if not no_print:
+                print(msg_win_attribs.substitute(path=item_path,
+                                                 win_attribs=" & ".join(changed_win_attribs)))
+
+            if not modify_win_attribs(path=item_path,
+                                      attribs_to_set=attribs_to_set,
+                                      attribs_to_unset=attribs_to_unset):
+                print(f"Error setting Windows attributes for \"{item_path}\"")
+                errored.append(item_path)
+
+            return True
+
+
+def set_uid_gid(item_path: str,
+                stored_data: ResultAttr,
+                no_print: bool,
+                msg_uid_gid: Template,
+                optional_arg: dict[str, bool]) -> bool:
+    changed_ids = []
+    if stored_data.uid_changed:
+        changed_ids.append("UID")
+    if stored_data.gid_changed:
+        changed_ids.append("GID")
+
+    if len(changed_ids) != 0:
+        if not no_print:
+            print(msg_uid_gid.substitute(path=item_path, changed_ids=" & ".join(changed_ids)))
+
+        os.chown(item_path, stored_data.uid, stored_data.gid, **optional_arg)
+        return True
+    else:
+        return False
+
+
+def set_permissions(item_path_orig: str,
+                    stored_data: ResultAttr,
+                    no_print: bool,
+                    ignore_permissions: bool,
+                    msg_permissions: Template,
+                    optional_arg: dict[str, bool]) -> bool:
+    if stored_data.mode_changed and not ignore_permissions:
+        if not no_print:
+            print(msg_permissions.substitute(path=item_path_orig))
+        os.chmod(item_path_orig, stored_data.mode, **optional_arg)
+
+        return True
+
+    return False
 
 
 def modify_win_attribs(path: str,
@@ -428,35 +484,35 @@ def save_attrs(working_path: str,
     :param output_file: Path to the file where to save the attributes to
     :param relative: Whether to store the paths as relatives to the root drive
     :param exclusions: List of pattern rules to exclude
-    :param exclusions_file: Path to ignore file.
+    :param exclusions_file: Path to ignore-file.
     :param no_print: Whether to print not found / skipped symlinks messages
     :param exclusions_ignore_case: Ignore casing with exclusion rules.
     """
 
-    if working_path.endswith('"'):
-        working_path = working_path[:-1] + os.path.sep  # Windows escapes the quote if the command ends in \" so this
+    if working_path.endswith("\""):
+        working_path = working_path[:-1] + os.path.sep  # Windows escapes the quote if the command ends in '\"' so this
         # fixes that, or at least it does if this argument is the last one, otherwise the output argument will eat
         # all the next args
 
-    if working_path.endswith(':'):
+    if working_path.endswith(":"):
         working_path += os.path.sep
 
     if not os.path.exists(working_path):
         print(f"\nERROR: The specified path:\n\n{working_path}\n\nDoesn't exist, aborting...", file=sys.stderr)
         sys.exit(1)
 
-    has_drive = os.path.splitdrive(output_file)[0]
+    has_drive: str = os.path.splitdrive(output_file)[0]
     if has_drive != "" and not os.path.exists(has_drive):
         print(f"\nERROR: The specified drive:\n\n{output_file}\n\nDoesn't exist, aborting...", file=sys.stderr)
         sys.exit(1)
 
     attr_file_name = output_file
-    if attr_file_name.endswith('"'):
+    if attr_file_name.endswith("\""):
         attr_file_name = attr_file_name[:-1]  # Windows escapes the quote if the command ends in \" so this fixes
         # that, or at least it does if this argument is the last one, otherwise the output argument will eat all the
         # following args
 
-    if attr_file_name.endswith(':'):
+    if attr_file_name.endswith(":"):
         attr_file_name += os.path.sep
 
     if os.path.basename(attr_file_name) != "" and os.path.isdir(attr_file_name):
@@ -480,11 +536,11 @@ def save_attrs(working_path: str,
     if os.path.basename(attr_file_name) == "":
         attr_file_name = os.path.join(attr_file_name, DEFAULT_ATTR_FILENAME)
 
-    reqstate = [relative,
-                working_path != os.curdir,
-                os.path.dirname(attr_file_name) == ""]
+    reqstate: List[bool] = [relative,
+                            working_path != os.curdir,
+                            os.path.dirname(attr_file_name) == ""]
 
-    orig_working_path = working_path
+    orig_working_path: str = working_path
     if all(reqstate):
         attr_file_name = os.path.join(os.getcwd(), attr_file_name)
     if reqstate[0] & reqstate[1]:
@@ -525,33 +581,35 @@ def restore_attrs(input_file: str,
                   skip_hidden: bool,
                   skip_readonly: bool,
                   skip_system: bool):
-    attr_file_name = input_file
-
-    if attr_file_name.endswith('"'):
-        attr_file_name = attr_file_name[:-1] + os.path.sep  # Windows escapes the quote if the command ends in \" so
+    if input_file.endswith('"'):
+        input_file = input_file[:-1] + os.path.sep  # Windows escapes the quote if the command ends in \" so
         # this fixes that
-    if os.path.basename(attr_file_name) == "":
-        attr_file_name = os.path.join(attr_file_name, DEFAULT_ATTR_FILENAME)
-    if not os.path.exists(attr_file_name):
-        print(f"ERROR: Saved attributes file \"{attr_file_name}\" not found", file=sys.stderr)
+    if os.path.basename(input_file) == "":
+        input_file = os.path.join(input_file, DEFAULT_ATTR_FILENAME)
+    if not os.path.exists(input_file):
+        print(f"ERROR: Saved attributes file \"{input_file}\" not found", file=sys.stderr)
         sys.exit(1)
-    if os.path.isdir(attr_file_name):
+    if os.path.isdir(input_file):
         print("ERROR: You have specified a directory for the input file, aborting...")
         sys.exit(1)
 
-    attr_file_size = os.path.getsize(attr_file_name)
+    attr_file_size: int = os.path.getsize(input_file)
 
     if attr_file_size == 0:
         print("ERROR: The attribute file is empty!", file=sys.stderr)
         sys.exit(1)
+
     try:
-        with open(attr_file_name, "r", encoding="utf-8", errors="backslashreplace") as attr_file:
-            attrs = json.load(attr_file)
+        with open(input_file, "r", encoding="utf-8", errors="backslashreplace") as attr_file:
+            attrs: dict = json.load(attr_file)
+
         if len(attrs) == 0:
             print("ERROR: The attribute file is empty!", file=sys.stderr)
             sys.exit(1)
+
         if working_path != os.curdir:
             os.chdir(working_path)
+
         apply_file_attrs(attrs=attrs,
                          no_print=no_print,
                          copy_to_access=copy_to_access,

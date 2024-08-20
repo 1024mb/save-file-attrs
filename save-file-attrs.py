@@ -550,7 +550,7 @@ def main():
     save_parser.add_argument("-ef", "--ignore-file",
                              help="Ignore file containing pattern rules, same format as git ignore rules. (Optional)",
                              metavar="%IGNORE-FILE%",
-                             nargs=1)
+                             nargs="?")
     save_parser.add_argument("-eic", "--exclusions-ignore-case",
                              help="Ignore casing for exclusions.",
                              action="store_true")

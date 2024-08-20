@@ -58,7 +58,8 @@ def collect_file_attrs(working_path: str,
                        relative: bool,
                        exclusions: Optional[List[str]],
                        exclusions_file: Optional[str],
-                       no_print: bool) -> dict:
+                       no_print: bool,
+                       exclusions_ignore_case: bool) -> dict:
     """
         :param working_path: Path where the attributes will be saved from.
             If relative is set to true then this should be a current dir pointer (commonly a dot ".")
@@ -81,8 +82,13 @@ def collect_file_attrs(working_path: str,
 
     if exclusions_file is not None:
         with open(exclusions_file, "r", encoding="utf8") as stream:
-            pattern_rules = stream.read().splitlines()
+            if exclusions_ignore_case:
+                pattern_rules = [pattern.lower() for pattern in stream.read().splitlines()]
+            else:
+                pattern_rules = stream.read().splitlines()
     if exclusions is not None:
+        if exclusions_ignore_case:
+            exclusions = [pattern.lower() for pattern in exclusions]
         pattern_rules.extend(exclusions)
 
     compiled_rules: Optional[PathSpec]
@@ -95,16 +101,20 @@ def collect_file_attrs(working_path: str,
         files = dir_names + filenames
         for file in files:
             file_path = os.path.join(dir_path, file)
+            file_path_orig = file_path
             try:
-                if compiled_rules is not None and compiled_rules.match_file(file_path):
-                    if orig_working_path == os.curdir or relative:
-                        print(f"\"{os.path.abspath(file_path)}\" has been skipped.")
-                        continue
-                    else:
-                        print(f"\"{file_path}\" has been skipped.")
-                        continue
+                if compiled_rules is not None:
+                    if exclusions_ignore_case:
+                        file_path = file_path.lower()
+                    if compiled_rules.match_file(file_path):
+                        if orig_working_path == os.curdir or relative:
+                            print(f"\"{os.path.abspath(file_path_orig)}\" has been skipped.")
+                            continue
+                        else:
+                            print(f"\"{file_path_orig}\" has been skipped.")
+                            continue
 
-                get_attrs(file_path, file_attrs)
+                get_attrs(file_path_orig, file_attrs)
             except KeyboardInterrupt:
                 try:
                     print("\nShutdown requested... dumping what could be collected and exiting\n")
@@ -113,6 +123,7 @@ def collect_file_attrs(working_path: str,
                     print("Cancelling and exiting...")
             except Exception as e:
                 print(f"\n{e}", end="\n\n")
+
     return file_attrs
 
 
@@ -379,7 +390,8 @@ def save_attrs(working_path: str,
                relative: bool,
                exclusions: Optional[List[str]],
                exclusions_file: Optional[str],
-               no_print: bool) -> None:
+               no_print: bool,
+               exclusions_ignore_case: bool) -> None:
     """
     :param working_path: Path where the attributes will be saved from
     :param output_file: Path to the file where to save the attributes to
@@ -453,7 +465,8 @@ def save_attrs(working_path: str,
                                    relative=relative,
                                    exclusions=exclusions,
                                    exclusions_file=exclusions_file,
-                                   no_print=no_print)
+                                   no_print=no_print,
+                                   exclusions_ignore_case=exclusions_ignore_case)
         with open(attr_file_name, "w", encoding="utf-8", errors="backslashreplace") as attr_file:
             json.dump(attrs, attr_file, indent=4, ensure_ascii=False)
         if os.path.splitdrive(attr_file_name)[0] == "":
@@ -538,6 +551,9 @@ def main():
                              help="Ignore file containing pattern rules, same format as git ignore rules. (Optional)",
                              metavar="%IGNORE-FILE%",
                              nargs=1)
+    save_parser.add_argument("-eic", "--exclusions-ignore-case",
+                             help="Ignore casing for exclusions.",
+                             action="store_true")
     save_parser.add_argument("-r", "--relative",
                              help="Store the paths as relative instead of full (Optional)",
                              action="store_true")
@@ -583,16 +599,15 @@ def main():
     if mode == "save":
         output_file: str = args.output
         exclusions: Optional[List[str]] = args.exclude
-
         exclusions_file: Optional[str] = args.ignore_file
-
         relative: bool = args.relative
+        exclusions_ignore_case: bool = args.exclusions_ignore_case
 
         if exclusions_file is not None and not os.path.isfile(exclusions_file):
             print("Specified ignore path is not a file or doesn't exist, exiting...")
             sys.exit(1)
 
-        save_attrs(working_path, output_file, relative, exclusions, exclusions_file, no_print)
+        save_attrs(working_path, output_file, relative, exclusions, exclusions_file, no_print, exclusions_ignore_case)
 
     if mode == "restore":
         input_file: str = args.input

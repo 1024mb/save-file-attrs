@@ -426,6 +426,7 @@ def save_attrs(working_path: str,
     :param exclusions: List of pattern rules to exclude
     :param exclusions_file: Path to ignore file.
     :param no_print: Whether to print not found / skipped symlinks messages
+    :param exclusions_ignore_case: Ignore casing with exclusion rules.
     """
 
     if working_path.endswith('"'):

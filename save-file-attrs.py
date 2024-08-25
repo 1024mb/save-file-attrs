@@ -31,9 +31,9 @@ DEFAULT_ATTR_FILENAME = ".saved-file-attrs"
 
 @dataclass
 class ResultAttr:
-    atime: float = 0
-    mtime: float = 0
-    ctime: float = 0
+    atime: int | float = 0
+    mtime: int | float = 0
+    ctime: int | float = 0
     mode: int = 0
     uid: int = 0
     gid: int = 0
@@ -141,11 +141,16 @@ def get_attrs(path: str,
               file_attrs: dict):
     file_info = os.lstat(path)
 
+    if sys.version_info >= (3, 12):
+        creation_time_attr = "st_birthtime_ns"
+    else:
+        creation_time_attr = "st_ctime_ns"
+
     file_attrs[path] = {
         "mode": file_info.st_mode,
-        "ctime": file_info.st_ctime,
-        "mtime": file_info.st_mtime,
-        "atime": file_info.st_atime,
+        "ctime": getattr(file_info, creation_time_attr),
+        "mtime": file_info.st_mtime_ns,
+        "atime": file_info.st_atime_ns,
         "uid": file_info.st_uid,
         "gid": file_info.st_gid,
     }
@@ -175,9 +180,19 @@ def get_attr_for_restore(attr: dict,
         stored_data.mode = attr["mode"]
 
     current_file_info = os.lstat(path)
-    stored_data.mode_changed = current_file_info.st_mode != stored_data.mode
-    stored_data.atime_changed = current_file_info.st_atime != stored_data.atime
-    stored_data.mtime_changed = current_file_info.st_mtime != stored_data.mtime
+
+    if type(stored_data.mtime) is int:
+        m_attr = "st_mtime_ns"
+        a_attr = "st_atime_ns"
+        c_attr = "st_birthtime_ns"
+    else:
+        m_attr = "st_mtime"
+        a_attr = "st_atime"
+        # Since nanosecond precision has been added at the same time that birthtime began to be used we use ctime here
+        c_attr = "st_ctime"
+
+    stored_data.atime_changed = getattr(current_file_info, a_attr) != stored_data.atime
+    stored_data.mtime_changed = getattr(current_file_info, m_attr) != stored_data.mtime
     if SYSTEM_PLATFORM == "Windows":
         cur_archive = bool(current_file_info.st_file_attributes & stat.FILE_ATTRIBUTE_ARCHIVE)
         cur_hidden = bool(current_file_info.st_file_attributes & stat.FILE_ATTRIBUTE_HIDDEN)
@@ -189,8 +204,10 @@ def get_attr_for_restore(attr: dict,
         stored_data.readonly_changed = cur_readonly != stored_data.readonly
         stored_data.system_changed = cur_system != stored_data.system
 
-        stored_data.ctime_changed = current_file_info.st_ctime != stored_data.ctime
+        if stored_data.ctime > 0:
+            stored_data.ctime_changed = getattr(current_file_info, c_attr) != stored_data.ctime
     else:
+        stored_data.mode_changed = current_file_info.st_mode != stored_data.mode
         stored_data.uid_changed = current_file_info.st_uid != stored_data.uid
         stored_data.gid_changed = current_file_info.st_gid != stored_data.gid
 
@@ -236,22 +253,22 @@ def apply_file_attrs(attrs: dict,
 
         if compiled_rules is not None and compiled_rules.match_file(item_path):
             if not no_print:
-                print(f"Skipping excluded path \"{os.path.abspath(item_path_orig)}\"")
+                print(f"Skipping excluded path \"{os.path.abspath(item_path)}\"")
             continue
 
         try:
-            if not os.path.lexists(item_path_orig):
+            if not os.path.lexists(item_path):
                 if not no_print:
-                    print(f"Skipping non-existent item \"{item_path_orig}\"")
+                    print(f"Skipping non-existent item \"{item_path}\"")
                 continue
 
-            stored_data = get_attr_for_restore(attr, item_path_orig)
+            stored_data = get_attr_for_restore(attr, item_path)
 
-            if (not os.path.islink(item_path_orig) or
-                    (os.path.islink(item_path_orig) and symlink_support)):
+            if (not os.path.islink(item_path) or
+                    (os.path.islink(item_path) and symlink_support)):
                 if SYSTEM_PLATFORM != "Windows":
                     # Does nothing in Windows
-                    if set_uid_gid(item_path=item_path_orig,
+                    if set_uid_gid(item_path=item_path,
                                    stored_data=stored_data,
                                    no_print=no_print,
                                    msg_uid_gid=msg_uid_gid,
@@ -259,7 +276,7 @@ def apply_file_attrs(attrs: dict,
                         processed = True
 
                     # st_mode on Windows is pretty useless, so we only perform this if the current OS is not Windows
-                    if set_permissions(item_path_orig=item_path_orig,
+                    if set_permissions(item_path_orig=item_path,
                                        stored_data=stored_data,
                                        no_print=no_print,
                                        ignore_permissions=ignore_permissions,
@@ -267,7 +284,7 @@ def apply_file_attrs(attrs: dict,
                                        optional_arg=optional_args):
                         processed = True
                 else:
-                    if process_win_attributes(item_path=item_path_orig,
+                    if process_win_attributes(item_path=item_path,
                                               stored_data=stored_data,
                                               skip_archive=skip_archive,
                                               skip_hidden=skip_hidden,
@@ -278,7 +295,7 @@ def apply_file_attrs(attrs: dict,
                                               msg_win_attribs=msg_win_attribs):
                         processed = True
 
-                if set_timestamps(item_path=item_path_orig,
+                if set_timestamps(item_path=item_path,
                                   stored_data=stored_data,
                                   no_print=no_print,
                                   msg_dates=msg_dates,
@@ -286,22 +303,22 @@ def apply_file_attrs(attrs: dict,
                                   optional_arg=optional_args):
                     processed = True
 
-                if copy_creation_to_accessed(item_path=item_path_orig,
+                if copy_creation_to_accessed(item_path=item_path,
                                              stored_data=stored_data,
                                              copy_to_access=copy_to_access,
                                              optional_arg=optional_args):
                     processed = True
             elif not no_print:
-                print(f"Skipping symbolic link \"{item_path_orig}\"")  # Python doesn't support
+                print(f"Skipping symbolic link \"{item_path}\"")  # Python doesn't support
                 # not following symlinks in this OS so we skip them
         except OSError as Err:
             print(f"\n{Err}", end="\n\n", file=sys.stderr)
-            errored.append(item_path_orig)
+            errored.append(item_path)
 
     if len(errored) != 0:
         print("\nErrored files/folders:\n")
         for line in errored:
-            print(line + "\n")
+            print(line)
         print(f"\nThere were {len(errored)} errors while restoring the attributes.")
         sys.exit(1)
     elif not processed:
@@ -317,6 +334,7 @@ def set_timestamps(item_path: str,
                    ignore_filesystem: bool,
                    optional_arg: dict[str, bool]) -> bool:
     changed_times = []
+    something_changed = False
 
     if stored_data.mtime_changed:
         changed_times.append("modification")
@@ -330,13 +348,27 @@ def set_timestamps(item_path: str,
             print(msg_dates.substitute(path=item_path, dates=" & ".join(changed_times)))
 
         if stored_data.mtime_changed or stored_data.atime_changed:
-            os.utime(item_path, (stored_data.atime, stored_data.mtime), **optional_arg)
-            return True
-        if stored_data.ctime_changed and SYSTEM_PLATFORM == "Windows" and not ignore_filesystem:
-            setctime(item_path, stored_data.ctime, **optional_arg)
-            return True
+            if type(stored_data.mtime) is int:
+                os.utime(item_path, ns=(stored_data.atime, stored_data.mtime), **optional_arg)
+            else:
+                os.utime(item_path, (stored_data.atime, stored_data.mtime), **optional_arg)
 
-    return False
+            something_changed = True
+
+        if stored_data.ctime_changed and SYSTEM_PLATFORM == "Windows" and not ignore_filesystem:
+            # setctime doesn't support ns timestamps
+            try:
+                if type(stored_data.ctime) is int:
+                    setctime(item_path, stored_data.ctime / 1_000_000_000, **optional_arg)
+                else:
+                    setctime(item_path, stored_data.ctime, **optional_arg)
+
+                something_changed = True
+            except WindowsError as e:
+                print("An error occurred while restoring the creation times.")
+                print(e)
+
+    return something_changed
 
 
 def copy_creation_to_accessed(item_path: str,
@@ -344,7 +376,10 @@ def copy_creation_to_accessed(item_path: str,
                               copy_to_access: bool,
                               optional_arg: dict[str, bool]):
     if copy_to_access and stored_data.ctime != stored_data.atime:
-        os.utime(item_path, (stored_data.ctime, stored_data.mtime), **optional_arg)
+        if type(stored_data.mtime) is int:
+            os.utime(item_path, ns=(stored_data.ctime, stored_data.mtime), **optional_arg)
+        else:
+            os.utime(item_path, (stored_data.ctime, stored_data.mtime), **optional_arg)
         return True
     else:
         return False

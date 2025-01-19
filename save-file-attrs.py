@@ -126,6 +126,7 @@ def compile_ignore_rules(exclusions_file: Optional[List[str]],
                     pattern_rules += [pattern.lower() for pattern in stream.read().splitlines()]
                 else:
                     pattern_rules += stream.read().splitlines()
+
     if exclusions is not None:
         if exclusions_ignore_case:
             exclusions = [pattern.lower() for pattern in exclusions]
@@ -170,10 +171,16 @@ def get_attr_for_restore(attr: dict,
     stored_data.mtime = attr["mtime"]
     if SYSTEM_PLATFORM == "Windows":
         stored_data.ctime = attr["ctime"]
-        stored_data.archive = attr["archive"]
-        stored_data.hidden = attr["hidden"]
-        stored_data.readonly = attr["readonly"]
-        stored_data.system = attr["system"]
+        try:
+            stored_data.archive = attr["archive"]
+            stored_data.hidden = attr["hidden"]
+            stored_data.readonly = attr["readonly"]
+            stored_data.system = attr["system"]
+        except KeyError:
+            stored_data.archive = -1
+            stored_data.hidden = -1
+            stored_data.readonly = -1
+            stored_data.system = -1
     else:
         stored_data.uid = attr["uid"]
         stored_data.gid = attr["gid"]
@@ -194,15 +201,17 @@ def get_attr_for_restore(attr: dict,
     stored_data.atime_changed = getattr(current_file_info, a_attr) != stored_data.atime
     stored_data.mtime_changed = getattr(current_file_info, m_attr) != stored_data.mtime
     if SYSTEM_PLATFORM == "Windows":
-        cur_archive = bool(current_file_info.st_file_attributes & stat.FILE_ATTRIBUTE_ARCHIVE)
-        cur_hidden = bool(current_file_info.st_file_attributes & stat.FILE_ATTRIBUTE_HIDDEN)
-        cur_readonly = bool(current_file_info.st_file_attributes & stat.FILE_ATTRIBUTE_READONLY)
-        cur_system = bool(current_file_info.st_file_attributes & stat.FILE_ATTRIBUTE_SYSTEM)
 
-        stored_data.archive_changed = cur_archive != stored_data.archive
-        stored_data.hidden_changed = cur_hidden != stored_data.hidden
-        stored_data.readonly_changed = cur_readonly != stored_data.readonly
-        stored_data.system_changed = cur_system != stored_data.system
+        if -1 not in (stored_data.archive, stored_data.hidden, stored_data.readonly, stored_data.system):
+            cur_archive = bool(current_file_info.st_file_attributes & stat.FILE_ATTRIBUTE_ARCHIVE)
+            cur_hidden = bool(current_file_info.st_file_attributes & stat.FILE_ATTRIBUTE_HIDDEN)
+            cur_readonly = bool(current_file_info.st_file_attributes & stat.FILE_ATTRIBUTE_READONLY)
+            cur_system = bool(current_file_info.st_file_attributes & stat.FILE_ATTRIBUTE_SYSTEM)
+
+            stored_data.archive_changed = cur_archive != stored_data.archive
+            stored_data.hidden_changed = cur_hidden != stored_data.hidden
+            stored_data.readonly_changed = cur_readonly != stored_data.readonly
+            stored_data.system_changed = cur_system != stored_data.system
 
         if stored_data.ctime > 0:
             stored_data.ctime_changed = getattr(current_file_info, c_attr) != stored_data.ctime
@@ -403,6 +412,9 @@ def process_win_attributes(item_path: str,
         changed_win_attribs: List[str] = []
         attribs_to_set: int = 0
         attribs_to_unset: int = 0
+
+        if -1 in (stored_data.archive, stored_data.hidden, stored_data.readonly, stored_data.system):
+            return False
 
         if stored_data.archive_changed and not skip_archive:
             changed_win_attribs.append("ARCHIVE")
@@ -781,7 +793,13 @@ def main():
         output_file: str = args.output
         relative: bool = args.relative
 
-        save_attrs(working_path, output_file, relative, exclusions, exclusions_file, no_print, exclusions_ignore_case)
+        save_attrs(working_path=working_path,
+                   output_file=output_file,
+                   relative=relative,
+                   exclusions=exclusions,
+                   exclusions_file=exclusions_file,
+                   exclusions_ignore_case=exclusions_ignore_case,
+                   no_print=no_print)
 
     if mode == "restore":
         input_file: str = args.input

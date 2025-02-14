@@ -1,2 +1,4 @@
 win32_setctime>=1.2.0; platform_system == 'Windows'
 pathspec>=0.12.1
+
+orjson>=3.10.15

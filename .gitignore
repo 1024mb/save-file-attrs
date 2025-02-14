@@ -128,3 +128,9 @@ dmypy.json
 # Pyre type checker
 .pyre/
 save-file-attrs_test.py
+nppBackup/
+save-file-attrs.dist/
+save-file-attrs.build/
+save-file-attrs.onefile-build/
+dist_nuitka/
+/*.zip

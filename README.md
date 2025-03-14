@@ -115,12 +115,12 @@ Individual patterns can be specified with `--exclude` or one or more ignore file
 `--ignore-file`.  
 By default exclusions are case-sensitive, using `--exclusions-ignore-case` will ignore the casing.
 
-Excluding file/directories should prevent them from being read.
+Excluding file/directories should prevent them from being read/listed.
 
 Limitations:
 -------------------------
 Currently, Python 3.13 and below doesn't support skipping symbolic links for certain operations on Windows (there may be
-other
-operating systems), because of this symbolic links are skipped when restoring attributes.
+other operating systems), because of this symbolic links are skipped when restoring attributes on these operating
+systems.
 
 [1]: https://github.com/robertknight/mandrawer

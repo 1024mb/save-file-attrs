@@ -2,6 +2,12 @@ Based on work by [Robert Knight][1]
 
 ## This script collects all the attributes from files and folders and stores them in a json-formatted file.
 
+***
+
+### Minimum python version is 3.12
+
+***
+
 Dependencies
 -------------------------
 
@@ -44,14 +50,14 @@ options:
                         default is current path)
   -ex [%PATTERN_RULE% ...], --exclude [%PATTERN_RULE% ...]
                         Pattern rules to exclude, same format as git ignore
-                        rules. (Optional)
+                        rules.
   -if [%IGNORE-FILE% ...], --ignore-file [%IGNORE-FILE% ...]
                         Ignore file containing pattern rules, same format as
-                        git ignore rules. (Optional)
+                        git ignore rules.
   -eic, --exclusions-ignore-case
                         Ignore casing for exclusions.
-  -r, --relative        Store the paths as relative instead of full (Optional)
-  --no-print-excluded   Don't print excluded files and folders (Optional)
+  -r, --relative        Store the paths as relative instead of full
+  --no-print-excluded   Don't print excluded files and folders
 ```
 
 Restore:
@@ -60,10 +66,10 @@ Restore:
 ```shell
 usage: save-file-attrs.py restore [-h] [-i [%INPUT%]] [-wp [%PATH%]]
                                   [--no-print-modified] [--no-print-skipped]
-                                  [--no-print-excluded] [-cta] [-ifs] [-ip]
+                                  [--no-print-excluded] [-cta] [-sp] [-so]
                                   [-ex [%PATTERN_RULE% ...]]
                                   [-if [%IGNORE-FILE%]] [-eic] [-sa] [-sh]
-                                  [-sr] [-ss]
+                                  [-sr] [-ss] [-sc] [-sm] [-sac]
 
 Restore file and directory attributes in a directory tree
 
@@ -82,30 +88,32 @@ options:
                         current dir)
   -wp [%PATH%], --working-path [%PATH%]
                         Set the working path, the attributes will be applied
-                        to the contents of this path (Optional, default is the
-                        current directory)
-  --no-print-modified   Don't print modified files and folders (Optional)
-  --no-print-skipped    Don't print skipped files and folders (Optional)
-  --no-print-excluded   Don't print excluded files and folders (Optional)
+                        to the contents of this path (Default is the current
+                        directory)
+  --no-print-modified   Don't print modified files and folders
+  --no-print-skipped    Don't print skipped files and folders
+  --no-print-excluded   Don't print excluded files and folders
   -cta, --copy-to-access
-                        Copy the creation dates to accessed dates (Optional)
-  -ifs, --ignore-filesystem
-                        Ignore filesystem and don't modify creation dates
-                        (Optional)
-  -ip, --ignore-permissions
-                        Ignore permissions change (Optional)
+                        Copy the creation dates to accessed dates
+  -sp, --skip-permissions
+                        Skip setting permissions
+  -so, --skip-owner     Skip setting ownership
   -ex [%PATTERN_RULE% ...], --exclude [%PATTERN_RULE% ...]
                         Pattern rules to exclude, same format as git ignore
-                        rules. (Optional)
+                        rules.
   -if [%IGNORE-FILE%], --ignore-file [%IGNORE-FILE%]
                         Ignore file containing pattern rules, same format as
                         git ignore rules. (Optional)
-  -eic, --exclusions-ignore-case
+  -eic, --exclusions-ignore-case 
                         Ignore casing for exclusions.
   -sa, --skip-archive   Skip setting the "archive" attribute.
   -sh, --skip-hidden    Skip setting the "hidden" attribute.
   -sr, --skip-readonly  Skip setting the "read-only" attribute.
   -ss, --skip-system    Skip setting the "system" attribute.
+  -sc, --skip-creation  Skip setting the "creation" timestamp.
+  -sm, --skip-modified  Skip setting the "modified" timestamp.
+  -sac, --skip-accessed
+                        Skip setting the "accessed" timestamp.
 ```
 
 Exclusions:

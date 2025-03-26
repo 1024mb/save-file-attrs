@@ -22,12 +22,6 @@ from pydantic import BaseModel, ValidationError
 
 from version import __version__
 
-SYSTEM_PLATFORM: str = sys.platform
-if SYSTEM_PLATFORM.startswith("linux"):
-    SYSTEM_PLATFORM = "linux"
-elif SYSTEM_PLATFORM in ("win32", "cygwin"):
-    SYSTEM_PLATFORM = "windows"
-
 # ERROR CODES
 SUCCESS: int = 0
 USER_INTERRUPTED: int = 1
@@ -35,13 +29,21 @@ GENERIC_ERROR: int = 2
 FILE_RELATED: int = 3
 ATTRIB_FILE_RELATED: int = 10
 
+if sys.version_info < (3, 12):
+    print("Python version must be >= 3.12")
+    sys.exit(GENERIC_ERROR)
+
+SYSTEM_PLATFORM: str = sys.platform
+if SYSTEM_PLATFORM.startswith("linux"):
+    SYSTEM_PLATFORM = "linux"
+elif SYSTEM_PLATFORM in ("win32", "cygwin"):
+    SYSTEM_PLATFORM = "windows"
+
 if SYSTEM_PLATFORM == "windows":
     import stat
     from win32_setctime import setctime
 
 DEFAULT_ATTR_FILENAME = ".saved-file-attrs"
-
-CREATION_TIME_ATTR: str
 
 
 class ResultAttr(BaseModel, validate_assignment=True):
@@ -99,6 +101,70 @@ class OldWinAttrData(BaseModel):
     system: bool = False
 
 
+class SaveConfig(BaseModel):
+    """
+    Attributes:
+        output_file: Path to the file where to save the attributes to
+        working_path: Path where attributes will be collected from
+        exclusions: List of exclusion rules
+        ignore_files: List of ignore files containing exclusion rules
+        exclusions_ignore_case: Ignore case for exclusions
+        relative: Store paths relative to the working path or full paths
+        no_print_excluded: Don't print excluded files/folders paths
+    """
+
+    output_file: str
+    working_path: str
+    exclusions: Optional[List[str]]
+    ignore_files: Optional[List[str]]
+    exclusions_ignore_case: bool
+    relative: bool
+    no_print_excluded: bool
+
+
+class RestoreConfig(BaseModel):
+    """
+    Attributes:
+        input_file: Input file
+        working_path: Directory where attributes will be applied to
+        exclusions: List of exclusion rules
+        ignore_files: List of ignore files containing exclusion rules
+        exclusions_ignore_case: Ignore case for exclusions
+        no_print_modified: Don't print modified files
+        no_print_skipped: Don't print skipped files
+        no_print_excluded: Don't print excluded files
+        copy_to_access: Copy the creation dates to accessed
+        skip_permissions: Skip setting permissions
+        skip_owner: Skip setting ownership
+        skip_archive: Skip setting the archive attribute
+        skip_hidden: Skip setting the hidden attribute
+        skip_readonly: Skip setting the readonly attribute
+        skip_system: Skip setting the system attribute
+        skip_modified: Skip setting the modified timestamp
+        skip_creation: Skip setting the creation timestamp
+        skip_accessed: Skip setting the accessed timestamp
+    """
+
+    input_file: str
+    working_path: str
+    exclusions: Optional[List[str]]
+    ignore_files: Optional[List[str]]
+    exclusions_ignore_case: bool
+    no_print_modified: bool
+    no_print_skipped: bool
+    no_print_excluded: bool
+    copy_to_access: bool
+    skip_permissions: bool
+    skip_owner: bool
+    skip_archive: bool
+    skip_hidden: bool
+    skip_readonly: bool
+    skip_system: bool
+    skip_modified: bool
+    skip_creation: bool
+    skip_accessed: bool
+
+
 def get_path_content(path_to_scan: str):
     return [item for item in os.scandir(path_to_scan)]
 
@@ -132,25 +198,21 @@ def get_non_excluded_items(path_to_scan: str,
     return copy.copy(non_excluded_items)
 
 
-def get_paths(ignore_files: Optional[List[str]],
-              exclusions: Optional[List[str]],
-              exclusions_ignore_case: bool,
-              initial_path: str,
-              relative: bool,
-              no_print_excluded: bool) -> List[DirEntry]:
+def get_paths(config: SaveConfig,
+              initial_path: str) -> List[DirEntry]:
     matched_items: List[DirEntry] = []
-    compiled_rules: Optional[PathSpec] = compile_ignore_rules(ignore_files=ignore_files,
-                                                              exclusions=exclusions,
-                                                              exclusions_ignore_case=exclusions_ignore_case)
+    compiled_rules: Optional[PathSpec] = compile_ignore_rules(ignore_files=config.ignore_files,
+                                                              exclusions=config.exclusions,
+                                                              exclusions_ignore_case=config.exclusions_ignore_case)
 
     if compiled_rules is None:
         alternative_items_list = get_path_content(path_to_scan=initial_path)
     else:
         alternative_items_list = get_non_excluded_items(path_to_scan=initial_path,
                                                         exclusion_rules=compiled_rules,
-                                                        exclusions_ignore_case=exclusions_ignore_case,
-                                                        relative=relative,
-                                                        no_print_excluded=no_print_excluded)
+                                                        exclusions_ignore_case=config.exclusions_ignore_case,
+                                                        relative=config.relative,
+                                                        no_print_excluded=config.no_print_excluded)
 
     matched_items += copy.copy(alternative_items_list)
 
@@ -162,9 +224,9 @@ def get_paths(ignore_files: Optional[List[str]],
                 if compiled_rules is not None:
                     temp_items_list += get_non_excluded_items(path_to_scan=item.path,
                                                               exclusion_rules=compiled_rules,
-                                                              exclusions_ignore_case=exclusions_ignore_case,
-                                                              relative=relative,
-                                                              no_print_excluded=no_print_excluded)
+                                                              exclusions_ignore_case=config.exclusions_ignore_case,
+                                                              relative=config.relative,
+                                                              no_print_excluded=config.no_print_excluded)
                 else:
                     temp_items_list += get_path_content(path_to_scan=item.path)
 
@@ -179,28 +241,13 @@ def get_paths(ignore_files: Optional[List[str]],
     return matched_items
 
 
-def collect_file_attrs(relative: bool,
-                       exclusions: Optional[List[str]],
-                       ignore_files: Optional[List[str]],
-                       no_print_excluded: bool,
-                       exclusions_ignore_case: bool,
-                       output_file: str) -> None:
-    global CREATION_TIME_ATTR
+def collect_file_attrs(config: SaveConfig) -> None:
     print("\nCollecting item list, please wait...")
 
     file_attrs: Dict[str, AttrData | WinAttrData] = {}
 
-    if sys.version_info >= (3, 12):
-        CREATION_TIME_ATTR = "st_birthtime_ns"
-    else:
-        CREATION_TIME_ATTR = "st_ctime_ns"
-
-    paths: List[DirEntry] = get_paths(ignore_files=ignore_files,
-                                      exclusions=exclusions,
-                                      exclusions_ignore_case=exclusions_ignore_case,
-                                      initial_path=os.curdir,
-                                      relative=relative,
-                                      no_print_excluded=no_print_excluded)
+    paths: List[DirEntry] = get_paths(config=config,
+                                      initial_path=os.curdir)
 
     print("\nCollecting attributes, please wait...")
 
@@ -209,23 +256,27 @@ def collect_file_attrs(relative: bool,
     for item in paths:
         try:
             if consecutive_errors == 10:
-                print(f"\nToo many consecutive errors ({consecutive_errors}), aborting...")
-                if len(file_attrs) > 0:
-                    write_attr_file(file_path=output_file,
-                                    content=file_attrs)
-                sys.exit(GENERIC_ERROR)
+                try:
+                    print(f"\nToo many consecutive errors ({consecutive_errors}), aborting...")
+                    if len(file_attrs) > 0:
+                        write_attr_file(file_path=config.output_file,
+                                        content=file_attrs)
+                    sys.exit(GENERIC_ERROR)
+                except KeyboardInterrupt:
+                    print("Cancelling...")
+                    sys.exit(GENERIC_ERROR)
 
             consecutive_errors = 0
             path = item.path
 
-            if not relative:
+            if not config.relative:
                 path = os.path.abspath(path)
 
             file_attrs[path] = get_attrs(path=item)
         except KeyboardInterrupt:
             try:
                 print("\nShutdown requested... dumping what could be collected...\n")
-                write_attr_file(file_path=output_file,
+                write_attr_file(file_path=config.output_file,
                                 content=file_attrs)
                 raise
             except KeyboardInterrupt:
@@ -235,7 +286,7 @@ def collect_file_attrs(relative: bool,
             print(f"\n{e}", end="\n\n")
             consecutive_errors += 1
 
-    write_attr_file(file_path=output_file,
+    write_attr_file(file_path=config.output_file,
                     content=file_attrs)
 
 
@@ -279,7 +330,7 @@ def get_attrs(path: DirEntry) -> AttrData | WinAttrData:
     else:
         file_attrs = AttrData()
 
-    file_attrs.ctime = getattr(file_info, CREATION_TIME_ATTR)
+    file_attrs.ctime = file_info.st_birthtime_ns
     file_attrs.mtime = file_info.st_mtime_ns
     file_attrs.atime = file_info.st_atime_ns
 
@@ -300,7 +351,7 @@ def get_attrs(path: DirEntry) -> AttrData | WinAttrData:
 
 def get_attr_for_restore(attr: AttrData | WinAttrData | OldWinAttrData,
                          path: str,
-                         ignore_filesystem: bool) -> ResultAttr:
+                         skip_creation: bool) -> ResultAttr:
     stored_data = ResultAttr()
     current_file_info = os.lstat(path)
 
@@ -323,7 +374,7 @@ def get_attr_for_restore(attr: AttrData | WinAttrData | OldWinAttrData,
     if SYSTEM_PLATFORM == "windows":
         stored_data.ctime = attr.ctime
 
-        if not ignore_filesystem and stored_data.ctime > 0:
+        if not skip_creation and stored_data.ctime > 0:
             stored_data.ctime_changed = getattr(current_file_info, c_attr) != stored_data.ctime
 
         if not isinstance(attr, AttrData):
@@ -355,19 +406,7 @@ def get_attr_for_restore(attr: AttrData | WinAttrData | OldWinAttrData,
 
 
 def apply_file_attrs(attrs: Dict[str, AttrData | WinAttrData | OldWinAttrData],
-                     no_print_modified: bool,
-                     no_print_skipped: bool,
-                     no_print_excluded: bool,
-                     copy_to_access: bool,
-                     ignore_filesystem: bool,
-                     ignore_permissions: bool,
-                     exclusions: Optional[List[str]],
-                     ignore_files: Optional[List[str]],
-                     exclusions_ignore_case: bool,
-                     skip_archive: bool,
-                     skip_hidden: bool,
-                     skip_readonly: bool,
-                     skip_system: bool):
+                     config: RestoreConfig) -> None:
     processed: bool = False
     errored: List[str] = []  # to store errored files/folders
     optional_args: Dict[str, bool] = {}
@@ -381,26 +420,26 @@ def apply_file_attrs(attrs: Dict[str, AttrData | WinAttrData | OldWinAttrData],
     if symlink_support:
         optional_args["follow_symlinks"] = False
 
-    compiled_rules: Optional[PathSpec] = compile_ignore_rules(ignore_files=ignore_files,
-                                                              exclusions=exclusions,
-                                                              exclusions_ignore_case=exclusions_ignore_case)
+    compiled_rules: Optional[PathSpec] = compile_ignore_rules(ignore_files=config.ignore_files,
+                                                              exclusions=config.exclusions,
+                                                              exclusions_ignore_case=config.exclusions_ignore_case)
 
     for item_path in sorted(attrs):
         try:
             if not os.path.lexists(item_path):
-                if not no_print_skipped:
+                if not config.no_print_skipped:
                     print(f"Skipping non-existent item \"{item_path}\"")
                 continue
 
             attr: AttrData | WinAttrData | OldWinAttrData
             try:
-                attr = AttrData.model_validate(attrs[item_path])
+                attr = AttrData.model_validate(attrs[item_path], strict=True)
             except ValidationError:
                 try:
-                    attr = WinAttrData.model_validate(attrs[item_path])
+                    attr = WinAttrData.model_validate(attrs[item_path], strict=True)
                 except ValidationError:
                     try:
-                        attr = OldWinAttrData.model_validate(attrs[item_path])
+                        attr = OldWinAttrData.model_validate(attrs[item_path], strict=True)
                     except ValidationError:
                         print(f"Attribute file is corrupt, aborting...\nError in path {item_path}")
                         sys.exit(ATTRIB_FILE_RELATED)
@@ -410,15 +449,15 @@ def apply_file_attrs(attrs: Dict[str, AttrData | WinAttrData | OldWinAttrData],
             if os.path.isdir(item_path):
                 comp_item_path += os.path.sep
 
-            if exclusions_ignore_case:
+            if config.exclusions_ignore_case:
                 comp_item_path = comp_item_path.lower()
 
             if compiled_rules is not None and compiled_rules.match_file(comp_item_path):
-                if not no_print_excluded:
+                if not config.no_print_excluded:
                     print(f"Skipping excluded path \"{os.path.abspath(item_path)}\"")
                 continue
 
-            stored_data = get_attr_for_restore(attr=attr, path=item_path, ignore_filesystem=ignore_filesystem)
+            stored_data = get_attr_for_restore(attr=attr, path=item_path, skip_creation=config.skip_creation)
 
             if (not os.path.islink(item_path) or
                     (os.path.islink(item_path) and symlink_support)):
@@ -426,7 +465,8 @@ def apply_file_attrs(attrs: Dict[str, AttrData | WinAttrData | OldWinAttrData],
                     # Does nothing in Windows
                     if set_uid_gid(item_path=item_path,
                                    stored_data=stored_data,
-                                   no_print_modified=no_print_modified,
+                                   no_print_modified=config.no_print_modified,
+                                   skip_owner=config.skip_owner,
                                    msg_uid_gid=msg_uid_gid,
                                    optional_arg=optional_args):
                         processed = True
@@ -434,37 +474,39 @@ def apply_file_attrs(attrs: Dict[str, AttrData | WinAttrData | OldWinAttrData],
                     # st_mode on Windows is pretty useless, so we only perform this if the current OS is not Windows
                     if set_permissions(item_path=item_path,
                                        stored_data=stored_data,
-                                       no_print_modified=no_print_modified,
-                                       ignore_permissions=ignore_permissions,
+                                       no_print_modified=config.no_print_modified,
+                                       skip_permissions=config.skip_permissions,
                                        msg_permissions=msg_permissions,
                                        optional_arg=optional_args):
                         processed = True
                 elif not stored_data.archive is None:
                     if process_win_attributes(item_path=item_path,
                                               stored_data=stored_data,
-                                              skip_archive=skip_archive,
-                                              skip_hidden=skip_hidden,
-                                              skip_readonly=skip_readonly,
-                                              skip_system=skip_system,
-                                              no_print_modified=no_print_modified,
+                                              skip_archive=config.skip_archive,
+                                              skip_hidden=config.skip_hidden,
+                                              skip_readonly=config.skip_readonly,
+                                              skip_system=config.skip_system,
+                                              no_print_modified=config.no_print_modified,
                                               errored=errored,
                                               msg_win_attribs=msg_win_attribs):
                         processed = True
 
                 if set_timestamps(item_path=item_path,
                                   stored_data=stored_data,
-                                  no_print_modified=no_print_modified,
+                                  no_print_modified=config.no_print_modified,
                                   msg_dates=msg_dates,
-                                  ignore_filesystem=ignore_filesystem,
+                                  skip_modified=config.skip_modified,
+                                  skip_creation=config.skip_creation,
+                                  skip_accessed=config.skip_accessed,
                                   optional_arg=optional_args):
                     processed = True
 
                 if copy_creation_to_accessed(item_path=item_path,
                                              stored_data=stored_data,
-                                             copy_to_access=copy_to_access,
+                                             copy_to_access=config.copy_to_access,
                                              optional_arg=optional_args):
                     processed = True
-            elif not no_print_skipped:
+            elif not config.no_print_skipped:
                 print(f"Skipping symbolic link \"{item_path}\"")  # Python doesn't support
                 # not following symlinks in this OS so we skip them
         except OSError as Err:
@@ -487,31 +529,49 @@ def set_timestamps(item_path: str,
                    stored_data: ResultAttr,
                    no_print_modified: bool,
                    msg_dates: Template,
-                   ignore_filesystem: bool,
+                   skip_modified: bool,
+                   skip_creation: bool,
+                   skip_accessed: bool,
                    optional_arg: dict[str, bool]) -> bool:
     changed_times = []
     something_changed = False
 
-    if stored_data.mtime_changed:
+    if skip_creation and skip_accessed and skip_modified:
+        return something_changed
+
+    if stored_data.mtime_changed and not skip_modified:
         changed_times.append("modification")
-    if stored_data.atime_changed:
+    if stored_data.atime_changed and not skip_accessed:
         changed_times.append("accessed")
-    if stored_data.ctime_changed:
+    if stored_data.ctime_changed and not skip_creation:
         changed_times.append("creation")
 
     if len(changed_times) != 0:
         if not no_print_modified:
             print(msg_dates.substitute(path=item_path, dates=" & ".join(changed_times)))
 
-        if stored_data.mtime_changed or stored_data.atime_changed:
-            if type(stored_data.mtime) is int:
-                os.utime(item_path, ns=(stored_data.atime, stored_data.mtime), **optional_arg)
-            else:
-                os.utime(item_path, (stored_data.atime, stored_data.mtime), **optional_arg)
+        if not (skip_modified and skip_accessed):
+            if stored_data.mtime_changed or stored_data.atime_changed:
+                if type(stored_data.mtime) is int:
+                    if skip_modified:
+                        stored_data.mtime = os.lstat(item_path).st_mtime_ns
 
-            something_changed = True
+                    if skip_accessed:
+                        stored_data.atime = os.lstat(item_path).st_atime_ns
 
-        if stored_data.ctime_changed and SYSTEM_PLATFORM == "windows" and not ignore_filesystem:
+                    os.utime(item_path, ns=(stored_data.atime, stored_data.mtime), **optional_arg)
+                else:
+                    if skip_modified:
+                        stored_data.mtime = os.lstat(item_path).st_mtime
+
+                    if skip_accessed:
+                        stored_data.atime = os.lstat(item_path).st_atime
+
+                    os.utime(item_path, (stored_data.atime, stored_data.mtime), **optional_arg)
+
+                something_changed = True
+
+        if stored_data.ctime_changed and SYSTEM_PLATFORM == "windows" and not skip_creation:
             # setctime doesn't support ns timestamps
             try:
                 if type(stored_data.ctime) is int:
@@ -607,8 +667,12 @@ def process_win_attributes(item_path: str,
 def set_uid_gid(item_path: str,
                 stored_data: ResultAttr,
                 no_print_modified: bool,
+                skip_owner: bool,
                 msg_uid_gid: Template,
                 optional_arg: dict[str, bool]) -> bool:
+    if skip_owner:
+        return False
+
     changed_ids = []
     if stored_data.uid_changed:
         changed_ids.append("UID")
@@ -628,10 +692,13 @@ def set_uid_gid(item_path: str,
 def set_permissions(item_path: str,
                     stored_data: ResultAttr,
                     no_print_modified: bool,
-                    ignore_permissions: bool,
+                    skip_permissions: bool,
                     msg_permissions: Template,
                     optional_arg: dict[str, bool]) -> bool:
-    if stored_data.mode_changed and not ignore_permissions:
+    if skip_permissions:
+        return False
+
+    if stored_data.mode_changed:
         if not no_print_modified:
             print(msg_permissions.substitute(path=item_path))
 
@@ -667,148 +734,102 @@ def set_win_attributes(path: str,
     return ctypes.windll.kernel32.SetFileAttributesW(path, win_attributes)
 
 
-def save_attrs(working_path: str,
-               output_file: str,
-               relative: bool,
-               exclusions: Optional[List[str]],
-               ignore_files: Optional[List[str]],
-               exclusions_ignore_case: bool,
-               no_print_excluded: bool) -> None:
-    """
-    :param working_path: Path where the attributes will be saved from
-    :param output_file: Path to the file where to save the attributes to
-    :param relative: Whether to store the paths as relatives to the root drive
-    :param exclusions: List of pattern rules to exclude
-    :param ignore_files: List of paths of ignore-files.
-    :param no_print_excluded: Whether to print excluded file/dir paths
-    :param exclusions_ignore_case: Ignore casing with exclusion rules.
-    """
+def save_attrs(config: SaveConfig) -> None:
 
     if SYSTEM_PLATFORM == "windows":
-        if working_path.endswith("\""):
-            print(f"Invalid character in working path: {working_path}", file=sys.stderr)
+        if config.working_path.endswith("\""):
+            print(f"Invalid character in working path: {config.working_path}", file=sys.stderr)
             sys.exit(FILE_RELATED)
 
-        if output_file.endswith("\""):
-            print(f"Invalid character in output file: {output_file}", file=sys.stderr)
+        if config.output_file.endswith("\""):
+            print(f"Invalid character in output file: {config.output_file}", file=sys.stderr)
             sys.exit(FILE_RELATED)
 
-        if working_path.endswith(":"):
-            working_path += os.path.sep
+        if config.working_path.endswith(":"):
+            config.working_path += os.path.sep
 
-    if not os.path.exists(working_path):
+    if not os.path.exists(config.working_path):
         print(f"\nERROR: The specified working path doesn't exist, aborting...", file=sys.stderr)
         sys.exit(FILE_RELATED)
 
-    has_drive: str = os.path.splitdrive(output_file)[0]
+    has_drive: str = os.path.splitdrive(config.output_file)[0]
     if has_drive != "" and not os.path.exists(has_drive):
         print(f"\nERROR: The specified output drive doesn't exist, aborting...", file=sys.stderr)
         sys.exit(FILE_RELATED)
 
-    if output_file.endswith(":"):
-        output_file += os.path.sep
+    if config.output_file.endswith(":"):
+        config.output_file += os.path.sep
 
-    if os.path.basename(output_file) != "" and os.path.isdir(output_file):
+    if os.path.basename(config.output_file) != "" and os.path.isdir(config.output_file):
         print("ERROR: The output filename you specified is the same one of a directory, a directory and a file "
               "with the same name can't exist within the same path, aborting...")
         sys.exit(FILE_RELATED)
 
-    if os.path.dirname(output_file) != "":
-        if os.path.isfile(os.path.dirname(output_file)):
+    if os.path.dirname(config.output_file) != "":
+        if os.path.isfile(os.path.dirname(config.output_file)):
             print("ERROR: The output directory name you specified is the same one of a file, a directory and a file "
                   "with the same name can't exist within the same path, aborting...")
             sys.exit(FILE_RELATED)
 
-        os.makedirs(os.path.dirname(output_file), exist_ok=True)
+        os.makedirs(os.path.dirname(config.output_file), exist_ok=True)
     else:
-        if os.path.isdir(os.path.join(os.getcwd(), output_file)):
+        if os.path.isdir(os.path.join(os.getcwd(), config.output_file)):
             print("ERROR: The output filename you specified is the same one of a directory, a directory and a file "
                   "with the same name can't exist within the same path, aborting...")
             sys.exit(FILE_RELATED)
 
-    if os.path.basename(output_file) == "":
-        output_file = os.path.join(output_file, DEFAULT_ATTR_FILENAME)
+    if os.path.basename(config.output_file) == "":
+        config.output_file = os.path.join(config.output_file, DEFAULT_ATTR_FILENAME)
 
-    reqstate: List[bool] = [relative,
-                            working_path != os.curdir,
-                            working_path != os.getcwd(),
-                            os.path.dirname(output_file) == ""]
+    reqstate: List[bool] = [config.relative,
+                            config.working_path != os.curdir,
+                            config.working_path != os.getcwd(),
+                            os.path.dirname(config.output_file) == ""]
 
     if all(reqstate):
-        output_file = os.path.abspath(output_file)
+        config.output_file = os.path.abspath(config.output_file)
 
-    os.chdir(working_path)
+    os.chdir(config.working_path)
 
     try:
-        collect_file_attrs(relative=relative,
-                           exclusions=exclusions,
-                           ignore_files=ignore_files,
-                           no_print_excluded=no_print_excluded,
-                           exclusions_ignore_case=exclusions_ignore_case,
-                           output_file=output_file)
+        collect_file_attrs(config=config)
     except OSError as ERR_W:
         print("ERROR: There was an error writing to the attribute file.\n\n", ERR_W, file=sys.stderr)
         sys.exit(FILE_RELATED)
 
 
-def restore_attrs(input_file: str,
-                  working_path: str,
-                  no_print_modified: bool,
-                  no_print_skipped: bool,
-                  no_print_excluded: bool,
-                  copy_to_access: bool,
-                  ignore_filesystem: bool,
-                  ignore_permissions: bool,
-                  exclusions: Optional[List[str]],
-                  ignore_files: Optional[List[str]],
-                  exclusions_ignore_case: bool,
-                  skip_archive: bool,
-                  skip_hidden: bool,
-                  skip_readonly: bool,
-                  skip_system: bool):
-    if SYSTEM_PLATFORM == "windows" and input_file.endswith('"'):
-        print(f"Invalid character in attribute file path: {input_file}", file=sys.stderr)
+def restore_attrs(config: RestoreConfig):
+    if SYSTEM_PLATFORM == "windows" and config.input_file.endswith('"'):
+        print(f"Invalid character in attribute file path: {config.input_file}", file=sys.stderr)
         sys.exit(FILE_RELATED)
 
-    if os.path.basename(input_file) == "":
-        input_file = os.path.join(input_file, DEFAULT_ATTR_FILENAME)
+    if os.path.basename(config.input_file) == "":
+        config.input_file = os.path.join(config.input_file, DEFAULT_ATTR_FILENAME)
 
-    if not os.path.exists(input_file):
-        print(f"ERROR: Attribute file \"{input_file}\" not found", file=sys.stderr)
+    if not os.path.exists(config.input_file):
+        print(f"ERROR: Attribute file \"{config.input_file}\" not found", file=sys.stderr)
         sys.exit(FILE_RELATED)
 
-    if os.path.isdir(input_file):
+    if os.path.isdir(config.input_file):
         print("ERROR: You have specified a directory for the input file, aborting...")
         sys.exit(FILE_RELATED)
 
-    if os.path.getsize(input_file) == 0:
+    if os.path.getsize(config.input_file) == 0:
         print("ERROR: The attribute file is empty!", file=sys.stderr)
         sys.exit(FILE_RELATED)
 
     try:
-        with open(input_file, "rb") as attr_file:
+        with open(config.input_file, "rb") as attr_file:
             attrs: Dict[str, AttrData | WinAttrData | OldWinAttrData] = orjson.loads(attr_file.read())
 
         if len(attrs) == 0:
             print("ERROR: The attribute file is empty!", file=sys.stderr)
             sys.exit(FILE_RELATED)
 
-        os.chdir(working_path)
+        os.chdir(config.working_path)
 
         apply_file_attrs(attrs=attrs,
-                         no_print_modified=no_print_modified,
-                         no_print_skipped=no_print_skipped,
-                         no_print_excluded=no_print_excluded,
-                         copy_to_access=copy_to_access,
-                         ignore_filesystem=ignore_filesystem,
-                         ignore_permissions=ignore_permissions,
-                         exclusions=exclusions,
-                         ignore_files=ignore_files,
-                         exclusions_ignore_case=exclusions_ignore_case,
-                         skip_archive=skip_archive,
-                         skip_hidden=skip_hidden,
-                         skip_readonly=skip_readonly,
-                         skip_system=skip_system)
+                         config=config)
     except KeyboardInterrupt:
         print("Shutdown requested...", file=sys.stderr)
         raise
@@ -860,21 +881,21 @@ def main():
                              default=os.curdir,
                              nargs="?")
     save_parser.add_argument("-ex", "--exclude",
-                             help="Pattern rules to exclude, same format as git ignore rules. (Optional)",
+                             help="Pattern rules to exclude, same format as git ignore rules.",
                              metavar="%PATTERN_RULE%",
                              nargs="*")
     save_parser.add_argument("-if", "--ignore-file",
-                             help="Ignore file containing pattern rules, same format as git ignore rules. (Optional)",
+                             help="Ignore file containing pattern rules, same format as git ignore rules.",
                              metavar="%IGNORE-FILE%",
                              nargs="*")
     save_parser.add_argument("-eic", "--exclusions-ignore-case",
                              help="Ignore casing for exclusions.",
                              action="store_true")
     save_parser.add_argument("-r", "--relative",
-                             help="Store the paths as relative instead of full (Optional)",
+                             help="Store the paths as relative instead of full",
                              action="store_true")
     save_parser.add_argument("--no-print-excluded",
-                             help="Don't print excluded files and folders (Optional)",
+                             help="Don't print excluded files and folders",
                              action="store_true")
 
     restore_parser = subparsers.add_parser("restore",
@@ -897,30 +918,30 @@ def main():
                                 nargs="?")
     restore_parser.add_argument("-wp", "--working-path",
                                 help="Set the working path, the attributes will be applied to the contents of this "
-                                     "path (Optional, default is the current directory)",
+                                     "path (Default is the current directory)",
                                 metavar="%PATH%",
                                 default=os.curdir,
                                 nargs="?")
     restore_parser.add_argument("--no-print-modified",
-                                help="Don't print modified files and folders (Optional)",
+                                help="Don't print modified files and folders",
                                 action="store_true")
     restore_parser.add_argument("--no-print-skipped",
-                                help="Don't print skipped files and folders (Optional)",
+                                help="Don't print skipped files and folders",
                                 action="store_true")
     restore_parser.add_argument("--no-print-excluded",
-                                help="Don't print excluded files and folders (Optional)",
+                                help="Don't print excluded files and folders",
                                 action="store_true")
     restore_parser.add_argument("-cta", "--copy-to-access",
-                                help="Copy the creation dates to accessed dates (Optional)",
+                                help="Copy the creation dates to accessed dates",
                                 action="store_true")
-    restore_parser.add_argument("-ifs", "--ignore-filesystem",
-                                help="Ignore filesystem and don't modify creation dates (Optional)",
+    restore_parser.add_argument("-sp", "--skip-permissions",
+                                help="Skip setting permissions",
                                 action="store_true")
-    restore_parser.add_argument("-ip", "--ignore-permissions",
-                                help="Ignore permissions change (Optional)",
+    restore_parser.add_argument("-so", "--skip-owner",
+                                help="Skip setting ownership",
                                 action="store_true")
     restore_parser.add_argument("-ex", "--exclude",
-                                help="Pattern rules to exclude, same format as git ignore rules. (Optional)",
+                                help="Pattern rules to exclude, same format as git ignore rules.",
                                 metavar="%PATTERN_RULE%",
                                 nargs="*")
     restore_parser.add_argument("-if", "--ignore-file",
@@ -943,6 +964,15 @@ def main():
     restore_parser.add_argument("-ss", "--skip-system",
                                 help="Skip setting the \"system\" attribute.",
                                 action="store_true")
+    restore_parser.add_argument("-sc", "--skip-creation",
+                                help="Skip setting the \"creation\" timestamp.",
+                                action="store_true")
+    restore_parser.add_argument("-sm", "--skip-modified",
+                                help="Skip setting the \"modified\" timestamp.",
+                                action="store_true")
+    restore_parser.add_argument("-sac", "--skip-accessed",
+                                help="Skip setting the \"accessed\" timestamp.",
+                                action="store_true")
 
     args = parser.parse_args()
 
@@ -954,57 +984,44 @@ def main():
         print("You have to use either save or restore.\nRead the help.")
         sys.exit(GENERIC_ERROR)
 
-    working_path: str = args.working_path
-    no_print_excluded: bool = args.no_print_excluded
-    exclusions: Optional[List[str]] = args.exclude
-    ignore_files: Optional[List[str]] = args.ignore_file
-    exclusions_ignore_case: bool = args.exclusions_ignore_case
-
-    if ignore_files is not None:
-        for file in ignore_files:
+    if args.ignore_file is not None:
+        for file in args.ignore_file:
             if not os.path.isfile(file):
                 print("Specified ignore filepath is not a file or doesn't exist, exiting...")
                 sys.exit(FILE_RELATED)
 
     if mode == "save":
-        output_file: str = args.output
-        relative: bool = args.relative
+        config = SaveConfig(output_file=args.output,
+                            working_path=args.working_path,
+                            exclusions=args.exclude,
+                            ignore_files=args.ignore_file,
+                            exclusions_ignore_case=args.exclusions_ignore_case,
+                            relative=args.relative,
+                            no_print_excluded=args.no_print_excluded)
 
-        save_attrs(working_path=working_path,
-                   output_file=output_file,
-                   relative=relative,
-                   exclusions=exclusions,
-                   ignore_files=ignore_files,
-                   exclusions_ignore_case=exclusions_ignore_case,
-                   no_print_excluded=no_print_excluded)
+        save_attrs(config=config)
 
     if mode == "restore":
-        input_file: str = args.input
-        no_print_modified: bool = args.no_print_modified
-        no_print_skipped: bool = args.no_print_skipped
-        copy_to_access: bool = args.copy_to_access
-        ignore_filesystem: bool = args.ignore_filesystem
-        ignore_permissions: bool = args.ignore_permissions
-        skip_archive: bool = args.skip_archive
-        skip_hidden: bool = args.skip_hidden
-        skip_readonly: bool = args.skip_readonly
-        skip_system: bool = args.skip_system
+        config = RestoreConfig(input_file=args.input,
+                               working_path=args.working_path,
+                               exclusions=args.exclude,
+                               ignore_files=args.ignore_file,
+                               exclusions_ignore_case=args.exclusions_ignore_case,
+                               no_print_modified=args.no_print_modified,
+                               no_print_skipped=args.no_print_skipped,
+                               no_print_excluded=args.no_print_excluded,
+                               copy_to_access=args.copy_to_access,
+                               skip_permissions=args.skip_permissions,
+                               skip_owner=args.skip_owner,
+                               skip_archive=args.skip_archive,
+                               skip_hidden=args.skip_hidden,
+                               skip_readonly=args.skip_readonly,
+                               skip_system=args.skip_system,
+                               skip_modified=args.skip_modified,
+                               skip_accessed=args.skip_accessed,
+                               skip_creation=args.skip_creation)
 
-        restore_attrs(input_file=input_file,
-                      working_path=working_path,
-                      no_print_skipped=no_print_skipped,
-                      no_print_excluded=no_print_excluded,
-                      no_print_modified=no_print_modified,
-                      copy_to_access=copy_to_access,
-                      ignore_filesystem=ignore_filesystem,
-                      ignore_permissions=ignore_permissions,
-                      exclusions=exclusions,
-                      ignore_files=ignore_files,
-                      exclusions_ignore_case=exclusions_ignore_case,
-                      skip_archive=skip_archive,
-                      skip_hidden=skip_hidden,
-                      skip_readonly=skip_readonly,
-                      skip_system=skip_system)
+        restore_attrs(config=config)
 
 
 if __name__ == "__main__":

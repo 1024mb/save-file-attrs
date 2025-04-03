@@ -11,7 +11,6 @@ Based on work by [Robert Knight][1]
 Dependencies
 -------------------------
 
-- [win32-setctime](https://github.com/Delgan/win32-setctime) (if on Windows)
 - [PathSpec](https://github.com/cpburnz/python-pathspec)
 - [Pydantic](https://github.com/pydantic/pydantic)
 - [orjson](https://github.com/ijl/orjson)
@@ -28,8 +27,8 @@ Save:
 ```shell
 usage: save-file-attrs.py save [-h] [-o [%OUTPUT%]] [-wp [%PATH%]]
                                [-ex [%PATTERN_RULE% ...]]
-                               [-if [%IGNORE-FILE% ...]] [-eic] [-r]
-                               [--no-print-excluded]
+                               [-if [%IGNORE-FILE% ...]] [-eic] [-r] [-sl]
+                               [--no-print-excluded] [--no-print-skipped]
 
 Save file and directory attributes in a directory tree
 
@@ -43,21 +42,23 @@ Exit code:
 options:
   -h, --help            show this help message and exit
   -o [%OUTPUT%], --output [%OUTPUT%]
-                        Set the output file (Optional, default is ".saved-
-                        file-attrs" in current dir)
+                        Set the output file. (Default is ".saved-file-attrs"
+                        in the current directory)
   -wp [%PATH%], --working-path [%PATH%]
-                        Set the path to store attributes from (Optional,
-                        default is current path)
+                        Set the path to store attributes from. (Default is the
+                        current path)
   -ex [%PATTERN_RULE% ...], --exclude [%PATTERN_RULE% ...]
                         Pattern rules to exclude, same format as git ignore
                         rules.
   -if [%IGNORE-FILE% ...], --ignore-file [%IGNORE-FILE% ...]
-                        Ignore file containing pattern rules, same format as
-                        git ignore rules.
+                        File(s) containing pattern rules, same format as git
+                        ignore rules.
   -eic, --exclusions-ignore-case
                         Ignore casing for exclusions.
-  -r, --relative        Store the paths as relative instead of full
-  --no-print-excluded   Don't print excluded files and folders
+  -r, --relative        Store the paths as relative instead of full paths.
+  -sl, --skip-links     Skip symbolic links and junctions.
+  --no-print-excluded   Don't print excluded files and folders.
+  --no-print-skipped    Don't print skipped files and folders.
 ```
 
 Restore:
@@ -69,7 +70,7 @@ usage: save-file-attrs.py restore [-h] [-i [%INPUT%]] [-wp [%PATH%]]
                                   [--no-print-excluded] [-cta] [-sp] [-so]
                                   [-ex [%PATTERN_RULE% ...]]
                                   [-if [%IGNORE-FILE%]] [-eic] [-sa] [-sh]
-                                  [-sr] [-ss] [-sc] [-sm] [-sac]
+                                  [-sr] [-ss] [-sc] [-sm] [-sac] [-sl]
 
 Restore file and directory attributes in a directory tree
 
@@ -84,27 +85,27 @@ options:
   -h, --help            show this help message and exit
   -i [%INPUT%], --input [%INPUT%]
                         Set the input file containing the attributes to
-                        restore (Optional, default is ".saved-file-attrs" in
-                        current dir)
+                        restore. (Default is ".saved-file-attrs" in the
+                        current directory)
   -wp [%PATH%], --working-path [%PATH%]
-                        Set the working path, the attributes will be applied
-                        to the contents of this path (Default is the current
-                        directory)
-  --no-print-modified   Don't print modified files and folders
-  --no-print-skipped    Don't print skipped files and folders
-  --no-print-excluded   Don't print excluded files and folders
+                        Set the working path. The attributes will be applied
+                        to the contents of this path if they are relative,
+                        ignored otherwise. (Default is the current directory)
+  --no-print-modified   Don't print modified files and folders.
+  --no-print-skipped    Don't print skipped files and folders.
+  --no-print-excluded   Don't print excluded files and folders.
   -cta, --copy-to-access
-                        Copy the creation dates to accessed dates
+                        Copy the creation dates to the accessed date.
   -sp, --skip-permissions
-                        Skip setting permissions
-  -so, --skip-owner     Skip setting ownership
+                        Skip setting permissions.
+  -so, --skip-owner     Skip setting ownership.
   -ex [%PATTERN_RULE% ...], --exclude [%PATTERN_RULE% ...]
                         Pattern rules to exclude, same format as git ignore
                         rules.
   -if [%IGNORE-FILE%], --ignore-file [%IGNORE-FILE%]
-                        Ignore file containing pattern rules, same format as
-                        git ignore rules. (Optional)
-  -eic, --exclusions-ignore-case 
+                        File(s) containing pattern rules, same format as git
+                        ignore rules.
+  -eic, --exclusions-ignore-case
                         Ignore casing for exclusions.
   -sa, --skip-archive   Skip setting the "archive" attribute.
   -sh, --skip-hidden    Skip setting the "hidden" attribute.
@@ -114,12 +115,13 @@ options:
   -sm, --skip-modified  Skip setting the "modified" timestamp.
   -sac, --skip-accessed
                         Skip setting the "accessed" timestamp.
+  -sl, --skip-links     Skip symbolic links and junctions.
 ```
 
 Exclusions:
 -------------------------
-Exclusion support now gitignore syntax for pattern rules, it should behave exactly as git.
-Individual patterns can be specified with `--exclude` or one or more ignore files can be supplied with
+Exclusion support gitignore syntax for pattern rules, it should behave exactly as git.
+Individual patterns can be specified with `--exclude` and/or one or more ignore files can be supplied with
 `--ignore-file`.  
 By default exclusions are case-sensitive, using `--exclusions-ignore-case` will ignore the casing.
 
@@ -127,8 +129,9 @@ Excluding file/directories should prevent them from being read/listed.
 
 Limitations:
 -------------------------
-Currently, Python 3.13 and below doesn't support skipping symbolic links for certain operations on Windows (there may be
-other operating systems), because of this symbolic links are skipped when restoring attributes on these operating
+Currently, Python doesn't support skipping symbolic links for certain operations on some operating
+systems, because of this symbolic links are skipped when restoring attributes on these operating
 systems.
+While Windows is one of them, we use a custom module to set the timestamps in this OS so this doesn't apply to Windows.
 
 [1]: https://github.com/robertknight/mandrawer

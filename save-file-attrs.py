@@ -107,10 +107,12 @@ class SaveConfig(BaseModel, validate_assignment=True):
         output_file: Path to the file where to save the attributes to
         working_path: Path where attributes will be collected from
         exclusions: List of exclusion rules
-        ignore_files: List of ignore files containing exclusion rules
+        ignore_files: List of files containing exclusion rules
         exclusions_ignore_case: Ignore case for exclusions
         relative: Store paths relative to the working path or full paths
+        skip_links: Skip symbolic links and junctions
         no_print_excluded: Don't print excluded files/folders paths
+        no_print_skipped: Don't print skipped files/folders paths
     """
 
     output_file: str
@@ -130,7 +132,7 @@ class RestoreConfig(BaseModel, validate_assignment=True):
         input_file: Input file
         working_path: Directory where attributes will be applied to
         exclusions: List of exclusion rules
-        ignore_files: List of ignore files containing exclusion rules
+        ignore_files: List of files containing exclusion rules
         exclusions_ignore_case: Ignore case for exclusions
         no_print_modified: Don't print modified files
         no_print_skipped: Don't print skipped files
@@ -145,6 +147,7 @@ class RestoreConfig(BaseModel, validate_assignment=True):
         skip_modified: Skip setting the modified timestamp
         skip_creation: Skip setting the creation timestamp
         skip_accessed: Skip setting the accessed timestamp
+        skip_links: Skip symbolic links and junctions
     """
 
     input_file: str
@@ -948,12 +951,12 @@ def main():
                                             10: Attribute file related error
                                         """))
     save_parser.add_argument("-o", "--output",
-                             help="Set the output file (Optional, default is \".saved-file-attrs\" in current dir)",
+                             help="Set the output file. (Default is \".saved-file-attrs\" in the current directory)",
                              metavar="%OUTPUT%",
                              default=DEFAULT_ATTR_FILENAME,
                              nargs="?")
     save_parser.add_argument("-wp", "--working-path",
-                             help="Set the path to store attributes from (Optional, default is current path)",
+                             help="Set the path to store attributes from. (Default is the current path)",
                              metavar="%PATH%",
                              default=os.curdir,
                              nargs="?")
@@ -962,23 +965,23 @@ def main():
                              metavar="%PATTERN_RULE%",
                              nargs="*")
     save_parser.add_argument("-if", "--ignore-file",
-                             help="Ignore file containing pattern rules, same format as git ignore rules.",
+                             help="File(s) containing pattern rules, same format as git ignore rules.",
                              metavar="%IGNORE-FILE%",
                              nargs="*")
     save_parser.add_argument("-eic", "--exclusions-ignore-case",
                              help="Ignore casing for exclusions.",
                              action="store_true")
     save_parser.add_argument("-r", "--relative",
-                             help="Store the paths as relative instead of full",
+                             help="Store the paths as relative instead of full paths.",
                              action="store_true")
     save_parser.add_argument("-sl", "--skip-links",
                              help="Skip symbolic links and junctions.",
                              action="store_true")
     save_parser.add_argument("--no-print-excluded",
-                             help="Don't print excluded files and folders",
+                             help="Don't print excluded files and folders.",
                              action="store_true")
     save_parser.add_argument("--no-print-skipped",
-                             help="Don't print skipped files and folders",
+                             help="Don't print skipped files and folders.",
                              action="store_true")
 
     restore_parser = subparsers.add_parser("restore",
@@ -994,42 +997,41 @@ def main():
                                                 10: Attribute file related error
                                             """))
     restore_parser.add_argument("-i", "--input",
-                                help="Set the input file containing the attributes to restore (Optional, default is "
-                                     "\".saved-file-attrs\" in current dir)",
+                                help="Set the input file containing the attributes to restore. (Default is "
+                                     "\".saved-file-attrs\" in the current directory)",
                                 metavar="%INPUT%",
                                 default=DEFAULT_ATTR_FILENAME,
                                 nargs="?")
     restore_parser.add_argument("-wp", "--working-path",
-                                help="Set the working path, the attributes will be applied to the contents of this "
-                                     "path if they are relative (Default is the current directory)",
+                                help="Set the working path. The attributes will be applied to the contents of this "
+                                     "path if they are relative, ignored otherwise. (Default is the current directory)",
                                 metavar="%PATH%",
                                 default=os.curdir,
                                 nargs="?")
     restore_parser.add_argument("--no-print-modified",
-                                help="Don't print modified files and folders",
+                                help="Don't print modified files and folders.",
                                 action="store_true")
     restore_parser.add_argument("--no-print-skipped",
-                                help="Don't print skipped files and folders",
+                                help="Don't print skipped files and folders.",
                                 action="store_true")
     restore_parser.add_argument("--no-print-excluded",
-                                help="Don't print excluded files and folders",
+                                help="Don't print excluded files and folders.",
                                 action="store_true")
     restore_parser.add_argument("-cta", "--copy-to-access",
-                                help="Copy the creation dates to accessed dates",
+                                help="Copy the creation dates to the accessed date.",
                                 action="store_true")
     restore_parser.add_argument("-sp", "--skip-permissions",
-                                help="Skip setting permissions",
+                                help="Skip setting permissions.",
                                 action="store_true")
     restore_parser.add_argument("-so", "--skip-owner",
-                                help="Skip setting ownership",
+                                help="Skip setting ownership.",
                                 action="store_true")
     restore_parser.add_argument("-ex", "--exclude",
                                 help="Pattern rules to exclude, same format as git ignore rules.",
                                 metavar="%PATTERN_RULE%",
                                 nargs="*")
     restore_parser.add_argument("-if", "--ignore-file",
-                                help="Ignore file containing pattern rules, same format as git ignore rules. ("
-                                     "Optional)",
+                                help="File(s) containing pattern rules, same format as git ignore rules.",
                                 metavar="%IGNORE-FILE%",
                                 nargs="?")
     restore_parser.add_argument("-eic", "--exclusions-ignore-case",
@@ -1061,8 +1063,6 @@ def main():
                                 action="store_true")
 
     args = parser.parse_args()
-
-    # Set args variables
 
     mode: str = args.mode
 

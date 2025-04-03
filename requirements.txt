@@ -1,4 +1,4 @@
 win32_setctime~=1.2.0; platform_system == 'Windows'
 pathspec~=0.12.1
-orjson~=3.10.15
-pydantic~=2.10.6
+orjson~=3.10.16
+pydantic~=2.11.1

@@ -13,8 +13,10 @@ from os import DirEntry
 from string import Template
 
 import orjson
+from loguru import logger
 from pathspec import PathSpec, GitIgnoreSpec
 from pydantic import BaseModel, ValidationError
+from pydantic_core import ErrorDetails
 
 from version import __version__
 
@@ -175,23 +177,32 @@ def get_path_content(path_to_scan: str,
                      relative: bool,
                      skip_links: bool,
                      no_print_skipped: bool) -> list[DirEntry]:
-    if skip_links:
-        path_content = []
+    try:
+        if skip_links:
+            path_content = []
 
-        for item in os.scandir(path_to_scan):
-            if item.is_symlink() or item.is_junction():
-                if not no_print_skipped:
-                    if relative:
-                        print(SKIP_SYMLINK_TEMPLATE.substitute(path=item.path))
-                    else:
-                        print(SKIP_SYMLINK_TEMPLATE.substitute(path=os.path.abspath(item.path)))
-                continue
+            for item in os.scandir(path_to_scan):
+                if item.is_symlink() or item.is_junction():
+                    if not no_print_skipped:
+                        if relative:
+                            print(SKIP_SYMLINK_TEMPLATE.substitute(path=item.path))
+                        else:
+                            print(SKIP_SYMLINK_TEMPLATE.substitute(path=os.path.abspath(item.path)))
+                    continue
 
-            path_content.append(item)
+                path_content.append(item)
 
-        return path_content
-    else:
-        return [item for item in os.scandir(path_to_scan)]
+            return path_content
+        else:
+            return [item for item in os.scandir(path_to_scan)]
+    except PermissionError as err:
+        logger.error(f"Error accessing accessing \"{path_to_scan}\": {err}")
+        logger.opt(exception=True).debug("Traceback:")
+        return []
+    except FileNotFoundError:
+        logger.error(f"Path: \"{path_to_scan}\" not found.")
+        logger.opt(exception=True).debug("Traceback:")
+        return []
 
 
 def get_non_excluded_items(path_to_scan: str,
@@ -221,7 +232,7 @@ def get_non_excluded_items(path_to_scan: str,
         else:
             path = item.path
 
-        if item.is_dir():
+        if item.is_dir(follow_symlinks=False):
             path += os.path.sep
 
         if not exclusion_rules.match_file(path):
@@ -263,7 +274,7 @@ def get_paths(config: SaveConfig,
 
     while True:
         for item in alternative_items_list:
-            if item.is_dir() and not item.is_symlink() and not item.is_junction():
+            if not item.is_symlink() and not item.is_junction() and item.is_dir(follow_symlinks=False):
                 if compiled_rules is not None:
                     temp_items_list += get_non_excluded_items(path_to_scan=item.path,
                                                               exclusion_rules=compiled_rules,
@@ -299,7 +310,7 @@ def collect_file_attrs(config: SaveConfig) -> None:
 
     print("\nCollecting attributes, please wait...")
 
-    consecutive_errors = 0
+    consecutive_errors = 1
 
     for item in paths:
         try:
@@ -311,28 +322,33 @@ def collect_file_attrs(config: SaveConfig) -> None:
                                         content=file_attrs)
                     sys.exit(GENERIC_ERROR)
                 except KeyboardInterrupt:
-                    print("Cancelling...")
+                    print("Cancelling...", file=sys.stderr)
                     sys.exit(GENERIC_ERROR)
 
-            consecutive_errors = 0
             path = item.path
 
             if not config.relative:
                 path = os.path.abspath(path)
 
             file_attrs[path] = get_attrs(path=item)
+
+            consecutive_errors = 1
         except KeyboardInterrupt:
             try:
-                print("\nShutdown requested... dumping what could be collected...\n")
+                print("\nShutdown requested... dumping what could be collected...\n", file=sys.stderr)
                 write_attr_file(file_path=config.output_file,
                                 content=file_attrs)
                 raise
             except KeyboardInterrupt:
-                print("Cancelling...")
+                print("Cancelling...", file=sys.stderr)
                 raise
-        except Exception as e:
-            print(f"\n{e}", end="\n\n")
+        except PermissionError as err:
+            logger.error(f"Error retrieving the attributes for \"{item.path}\": {err}")
+            logger.opt(exception=True).debug("Traceback:")
             consecutive_errors += 1
+        except Exception:
+            logger.error(f"There was an error collecting file attributes for \"{item.path}\".")
+            raise
 
     write_attr_file(file_path=config.output_file,
                     content=file_attrs)
@@ -340,10 +356,15 @@ def collect_file_attrs(config: SaveConfig) -> None:
 
 def write_attr_file(file_path: str,
                     content: dict[str, AttrData | WinAttrData]) -> None:
-    with open(file_path, "wb") as attr_file:
-        attr_file.write(orjson.dumps(content, option=orjson.OPT_INDENT_2))
+    try:
+        with open(file_path, "wb") as attr_file:
+            attr_file.write(orjson.dumps(content, option=orjson.OPT_INDENT_2))
 
-    print(f"\nAttributes saved to \"{os.path.abspath(file_path)}\"")
+        print(f"\nAttributes saved to \"{os.path.abspath(file_path)}\"")
+    except OSError as err:
+        logger.critical(f"Error writing the attribute file \"{file_path}\": {err}")
+        logger.opt(exception=True).debug("Traceback:")
+        sys.exit(FILE_RELATED)
 
 
 def compile_ignore_rules(ignore_files: list[str] | None,
@@ -505,8 +526,11 @@ def apply_file_attrs(attrs: dict[str, AttrData | WinAttrData | OldWinAttrData],
                 except ValidationError:
                     try:
                         attr = OldWinAttrData.model_validate(attrs[item_path], strict=True)
-                    except ValidationError:
-                        print(f"Attribute file is corrupt, aborting...\nError in path {item_path}")
+                    except ValidationError as err:
+                        logger.critical(f"Attribute file is corrupt, aborting...\n"
+                                        f"Error in path: \"{item_path}\"\n"
+                                        f"{process_validation_errors(error_details=err.errors())}")
+                        logger.opt(exception=True).debug("Traceback:")
                         sys.exit(ATTRIB_FILE_RELATED)
 
             comp_item_path = os.path.relpath(item_path, os.getcwd())
@@ -575,14 +599,13 @@ def apply_file_attrs(attrs: dict[str, AttrData | WinAttrData | OldWinAttrData],
             elif not config.no_print_skipped:
                 # Python doesn't support not following symlinks in this OS so we skip them
                 print(SKIP_SYMLINK_TEMPLATE.substitute(path=item_path))
-        except OSError as Err:
-            print(f"\n{Err}", end="\n\n", file=sys.stderr)
+        except (PermissionError, FileNotFoundError) as err:
+            logger.error(f"Error applying attributes to \"{item_path}\": {err}")
+            logger.opt(exception=True).debug("Traceback:")
             errored.append(item_path)
 
     if len(errored) != 0:
-        print("\nErrored files/folders:\n")
-        for line in errored:
-            print(line)
+        print("\nErrored files\\folders:\n" + "\n".join(errored))
         print(f"\nThere were {len(errored)} errors while restoring the attributes.")
         sys.exit(GENERIC_ERROR)
     elif not processed:
@@ -638,8 +661,9 @@ def set_timestamps(item_path: str,
                           mtime=new_mtime,
                           atime=new_atime,
                           **optional_arg)
-            except WindowsError as e:
-                print(f"An error occurred while restoring the timestamps.\n{e}")
+            except WindowsError:
+                logger.opt(exception=True).error(f"An error occurred while restoring the timestamps for: "
+                                                 f"\"{item_path}\".")
         else:
             if not (skip_modified and skip_accessed):
                 if stored_data.mtime_changed or stored_data.atime_changed:
@@ -726,7 +750,7 @@ def process_win_attributes(item_path: str,
         if not modify_win_attribs(path=item_path,
                                   attribs_to_set=attribs_to_set,
                                   attribs_to_unset=attribs_to_unset):
-            print(f"Error setting Windows attributes for \"{item_path}\"")
+            logger.error(f"Error setting Windows attributes for \"{item_path}\"")
             errored.append(item_path)
 
         return True
@@ -817,28 +841,20 @@ def set_win_attributes(path: str,
 def save_attrs(config: SaveConfig) -> None:
 
     if SYSTEM_PLATFORM == "windows":
-        if config.working_path.endswith("\""):
-            print(f"Invalid character in working path: {config.working_path}", file=sys.stderr)
-            sys.exit(FILE_RELATED)
-
-        if config.output_file.endswith("\""):
-            print(f"Invalid character in output file: {config.output_file}", file=sys.stderr)
-            sys.exit(FILE_RELATED)
-
         if config.working_path.endswith(":"):
             config.working_path += os.path.sep
 
+        if config.output_file.endswith(":"):
+            config.output_file += os.path.sep
+
     if not os.path.exists(config.working_path):
-        print(f"\nERROR: The specified working path doesn't exist, aborting...", file=sys.stderr)
+        logger.critical(f"ERROR: The specified working path doesn't exist, aborting...")
         sys.exit(FILE_RELATED)
 
     has_drive: str = os.path.splitdrive(config.output_file)[0]
     if has_drive != "" and not os.path.exists(has_drive):
-        print(f"\nERROR: The specified output drive doesn't exist, aborting...", file=sys.stderr)
+        logger.critical(f"ERROR: The specified output drive doesn't exist, aborting...")
         sys.exit(FILE_RELATED)
-
-    if config.output_file.endswith(":"):
-        config.output_file += os.path.sep
 
     if os.path.basename(config.output_file) != "" and os.path.isdir(config.output_file):
         print("ERROR: The output filename you specified is the same one of a directory, a directory and a file "
@@ -861,49 +877,46 @@ def save_attrs(config: SaveConfig) -> None:
     if os.path.basename(config.output_file) == "":
         config.output_file = os.path.join(config.output_file, DEFAULT_ATTR_FILENAME)
 
-    reqstate: list[bool] = [config.relative,
-                            config.working_path != os.curdir,
-                            config.working_path != os.getcwd(),
-                            os.path.dirname(config.output_file) == ""]
+    reqstate: set[bool] = {config.relative,
+                           config.working_path != os.curdir,
+                           config.working_path != os.getcwd(),
+                           os.path.dirname(config.output_file) == ""}
 
     if all(reqstate):
         config.output_file = os.path.abspath(config.output_file)
 
     os.chdir(config.working_path)
 
-    try:
-        collect_file_attrs(config=config)
-    except OSError as ERR_W:
-        print("ERROR: There was an error writing to the attribute file.\n\n", ERR_W, file=sys.stderr)
-        sys.exit(FILE_RELATED)
+    collect_file_attrs(config=config)
 
 
 def restore_attrs(config: RestoreConfig):
-    if SYSTEM_PLATFORM == "windows" and config.input_file.endswith('"'):
-        print(f"Invalid character in attribute file path: {config.input_file}", file=sys.stderr)
-        sys.exit(FILE_RELATED)
-
     if os.path.basename(config.input_file) == "":
         config.input_file = os.path.join(config.input_file, DEFAULT_ATTR_FILENAME)
 
     if not os.path.exists(config.input_file):
-        print(f"ERROR: Attribute file \"{config.input_file}\" not found", file=sys.stderr)
+        logger.critical(f"ERROR: Attribute file \"{config.input_file}\" not found.")
         sys.exit(FILE_RELATED)
 
     if os.path.isdir(config.input_file):
-        print("ERROR: You have specified a directory for the input file, aborting...")
+        logger.critical("ERROR: You have specified a directory for the input file, aborting...")
         sys.exit(FILE_RELATED)
 
     if os.path.getsize(config.input_file) == 0:
-        print("ERROR: The attribute file is empty!", file=sys.stderr)
+        logger.critical("ERROR: The attribute file is empty!")
         sys.exit(FILE_RELATED)
 
     try:
-        with open(config.input_file, "rb") as attr_file:
-            attrs: dict[str, AttrData | WinAttrData | OldWinAttrData] = orjson.loads(attr_file.read())
+        try:
+            with open(config.input_file, "rb") as attr_file:
+                attrs: dict[str, AttrData | WinAttrData | OldWinAttrData] = orjson.loads(attr_file.read())
+        except OSError:
+            logger.opt(exception=True).critical(f"ERROR: There was an error reading the attribute file, no attribute "
+                                                f"has been changed.")
+            sys.exit(FILE_RELATED)
 
         if len(attrs) == 0:
-            print("ERROR: The attribute file is empty!", file=sys.stderr)
+            logger.critical("ERROR: The attribute file is empty!")
             sys.exit(FILE_RELATED)
 
         os.chdir(config.working_path)
@@ -913,10 +926,6 @@ def restore_attrs(config: RestoreConfig):
     except KeyboardInterrupt:
         print("Shutdown requested...", file=sys.stderr)
         raise
-    except OSError as ERR_R:
-        print(f"ERROR: There was an error reading the attribute file, no attribute has been changed.\n\n{ERR_R}\n",
-              file=sys.stderr)
-        sys.exit(FILE_RELATED)
 
 
 def main():
@@ -935,6 +944,13 @@ def main():
     parser.add_argument("--version", "-version",
                         action="version",
                         version=f"%(prog)s v{__version__}")
+    # noinspection PyTypeChecker
+    parser.add_argument("--log-level",
+                        help="How much stuff is logged.",
+                        default="WARNING",
+                        choices=["TRACE", "DEBUG", "INFO", "SUCCESS", "WARNING", "ERROR", "CRITICAL"],
+                        type=str.upper)
+
     subparsers = parser.add_subparsers(dest="mode",
                                        help="Select the mode of operation")
 
@@ -1076,6 +1092,9 @@ def main():
                 print("Specified ignore filepath is not a file or doesn't exist, exiting...")
                 sys.exit(FILE_RELATED)
 
+    logger.remove()
+    logger.add(sys.stderr, level=args.log_level)
+
     if mode == "save":
         config = SaveConfig(output_file=args.output,
                             working_path=args.working_path,
@@ -1113,9 +1132,39 @@ def main():
         restore_attrs(config=config)
 
 
+def process_validation_errors(error_details: list[ErrorDetails]) -> str:
+    msg: str = ""
+    for detail in error_details:
+        if detail["type"] == "missing":
+            missing_opts = ""
+            for option in detail["loc"]:
+                missing_opts += f"{option} "
+
+            msg += f"Missing options: {missing_opts}\n"
+        elif detail["type"] == "json_invalid":
+            msg += "Invalid JSON file."
+        elif detail["type"] == "value_error":
+            invalid_opts = ""
+            for option in detail["loc"]:
+                invalid_opts += f"{option} "
+
+            msg += f"The values of these options are invalid: {invalid_opts}\n"
+        else:
+            invalid_opts = ""
+            for option in detail["loc"]:
+                invalid_opts += f"{option} "
+
+            msg += f"\n{detail['msg']}: {invalid_opts}\n"
+
+    return msg
+
+
 if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
         print("Exiting...")
         sys.exit(USER_INTERRUPTED)
+    except Exception:
+        logger.opt(exception=True).critical(f"Unexpected error:")
+        sys.exit(GENERIC_ERROR)

@@ -14,6 +14,7 @@ Dependencies
 - [PathSpec](https://github.com/cpburnz/python-pathspec)
 - [Pydantic](https://github.com/pydantic/pydantic)
 - [orjson](https://github.com/ijl/orjson)
+- [loguru](https://github.com/Delgan/loguru)
 
 There are two modes:
 -------------------------

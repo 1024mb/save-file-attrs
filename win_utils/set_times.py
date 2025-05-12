@@ -6,7 +6,7 @@ try:
     from ctypes import byref, get_last_error, wintypes, FormatError, WinDLL, WinError
     from ctypes.wintypes import FILETIME, HANDLE
 
-    kernel32 = WinDLL("kernel32", use_last_error=True)
+    kernel32: WinDLL = WinDLL("kernel32", use_last_error=True)
 
     CreateFileW = kernel32.CreateFileW
     SetFileTime = kernel32.SetFileTime
@@ -41,17 +41,16 @@ else:
 if sys.version_info >= (3, 6):
     PathLike = os.PathLike
 else:
-    # noinspection PyUnresolvedReferences
-    from pathlib import PurePath as PathLike
+    raise RuntimeError("Python version must be 3.6+")
 
 from typing import Union
 
 
 def set_times(filepath: Union[str, PathLike],
               *,
-              ctime: float | int = None,
-              mtime: float | int = None,
-              atime: float | int = None,
+              ctime: Union[float, int] = None,
+              mtime: Union[float, int] = None,
+              atime: Union[float, int] = None,
               follow_symlinks: bool = False) -> None:
     """Set the modified, accessed and creation times attribute of a file given an unix timestamp (Windows only)."""
 
@@ -82,7 +81,7 @@ def set_times(filepath: Union[str, PathLike],
         CloseHandle(handle)
 
 
-def _convert_time(time: float | int | None) -> FILETIME:
+def _convert_time(time: Union[float, int, None]) -> FILETIME:
     if type(time) is float:
         result_time = int(time * 10000000) + 116444736000000000
     elif type(time) is int:

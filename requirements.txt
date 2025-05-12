@@ -1,3 +1,5 @@
 pathspec~=0.12.1
-orjson~=3.10.16
-pydantic~=2.11.1
+orjson~=3.10.18
+pydantic~=2.11.4
+loguru~=0.7.3
+pydantic_core~=2.33.2

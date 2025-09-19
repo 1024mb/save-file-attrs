@@ -360,7 +360,7 @@ def write_attr_file(file_path: str,
                     content: dict[str, AttrData | WinAttrData]) -> None:
     try:
         with open(file_path, "wb") as attr_file:
-            attr_file.write(json_dumps(content))
+            attr_file.write(json_dumps(obj=content))
 
         print(f"\nAttributes saved to \"{os.path.abspath(file_path)}\"")
     except OSError as err:
@@ -1161,6 +1161,15 @@ def process_validation_errors(error_details: list[ErrorDetails]) -> str:
     return msg
 
 
+def json_dumps(obj: Any) -> bytes:
+    try:
+        return orjson.dumps(obj, option=orjson.OPT_INDENT_2)
+    except TypeError as err:
+        if str(err) == "Integer exceeds 64-bit range":
+            return json.dumps(obj, indent=2).encode(encoding="utf-8")
+        raise err
+
+
 if __name__ == "__main__":
     try:
         main()
@@ -1170,12 +1179,3 @@ if __name__ == "__main__":
     except Exception:
         logger.opt(exception=True).critical(f"Unexpected error:")
         sys.exit(GENERIC_ERROR)
-
-
-def json_dumps(obj: Any) -> bytes:
-    try:
-        return orjson.dumps(obj, option=orjson.OPT_INDENT_2)
-    except TypeError as err:
-        if str(err) == "Integer exceeds 64-bit range":
-            return json.dumps(obj, indent=2).encode(encoding="utf-8")
-        raise err

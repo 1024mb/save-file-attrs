@@ -15,6 +15,7 @@ from string import Template
 from typing import Any
 
 import orjson
+import statx
 from loguru import logger
 from pathspec import PathSpec, GitIgnoreSpec
 from pydantic import BaseModel, ValidationError
@@ -401,7 +402,11 @@ def get_attrs(path: DirEntry) -> AttrData | WinAttrData:
     else:
         file_attrs = AttrData(atime=0, mtime=0, ctime=0, mode=0, uid=0, gid=0)
 
-    file_attrs.ctime = file_info.st_birthtime_ns
+    try:
+        file_attrs.ctime = file_info.st_birthtime_ns
+    except AttributeError:
+        file_attrs.ctime = statx.statx(path.path, follow_symlinks=False, get_basic_stats=True).btime
+
     file_attrs.mtime = file_info.st_mtime_ns
     file_attrs.atime = file_info.st_atime_ns
 

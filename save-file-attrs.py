@@ -1,9 +1,5 @@
 #!/usr/bin/env python
 
-"""
-Save and restore modified, accessed and created times, owners and mode for all files in a tree.
-"""
-
 import argparse
 import copy
 import json
@@ -113,7 +109,7 @@ class SaveConfig(BaseModel, validate_assignment=True):
         working_path: Path where attributes will be collected from
         exclusions: List of exclusion rules
         ignore_files: List of files containing exclusion rules
-        exclusions_ignore_case: Ignore case for exclusions
+        exclusions_ignore_case: Ignore casing for exclusions
         relative: Store paths relative to the working path or full paths
         skip_links: Skip symbolic links and junctions
         no_print_excluded: Don't print excluded files/folders paths
@@ -209,7 +205,7 @@ def get_path_content(path_to_scan: str,
 
 
 def get_non_excluded_items(path_to_scan: str,
-                           exclusion_rules: PathSpec | None,
+                           exclusion_rules: PathSpec,
                            exclusions_ignore_case: bool,
                            relative: bool,
                            skip_links: bool,
@@ -231,9 +227,9 @@ def get_non_excluded_items(path_to_scan: str,
             continue
 
         if exclusions_ignore_case:
-            path = item.path.lower()
+            path = str(item.path).lower()
         else:
-            path = item.path
+            path = str(item.path)
 
         if item.is_dir(follow_symlinks=False):
             path += os.path.sep
@@ -441,7 +437,7 @@ def get_attr_for_restore(attr: AttrData | WinAttrData | OldWinAttrData,
     else:
         m_attr = "st_mtime"
         a_attr = "st_atime"
-        # Since nanosecond precision has been added at the same time that birthtime began to be used we use ctime here
+        # Since nanosecond precision has been added at the same time that birthtime began to be used, we use ctime here
         c_attr = "st_ctime"
 
     stored_data.atime_changed = timestamp_changed(timestamp_1=getattr(current_file_info, a_attr),
@@ -559,7 +555,7 @@ def apply_file_attrs(attrs: dict[str, AttrData | WinAttrData | OldWinAttrData],
                     ((os.path.islink(item_path) or os.path.isjunction(item_path)) and
                      symlink_support and not config.skip_links)):
                 if SYSTEM_PLATFORM != "windows":
-                    # Does nothing in Windows
+                    # Does nothing on Windows
                     if set_uid_gid(item_path=item_path,
                                    stored_data=stored_data,
                                    no_print_modified=config.no_print_modified,
@@ -604,7 +600,7 @@ def apply_file_attrs(attrs: dict[str, AttrData | WinAttrData | OldWinAttrData],
                                              optional_arg=optional_args):
                     processed = True
             elif not config.no_print_skipped:
-                # Python doesn't support not following symlinks in this OS so we skip them
+                # Python doesn't support not following symlinks in this OS, so we skip them
                 print(SKIP_SYMLINK_TEMPLATE.substitute(path=item_path))
         except (PermissionError, FileNotFoundError) as err:
             logger.error(f"Error applying attributes to \"{item_path}\": {err}")
@@ -689,7 +685,7 @@ def set_timestamps(item_path: str,
                         if skip_accessed:
                             stored_data.atime = os.lstat(item_path).st_atime
 
-                        os.utime(item_path, (stored_data.atime, stored_data.mtime), **optional_arg)
+                        os.utime(item_path, times=(stored_data.atime, stored_data.mtime), **optional_arg)
 
     return something_changed
 
@@ -884,12 +880,12 @@ def save_attrs(config: SaveConfig) -> None:
     if os.path.basename(config.output_file) == "":
         config.output_file = os.path.join(config.output_file, DEFAULT_ATTR_FILENAME)
 
-    reqstate: set[bool] = {config.relative,
-                           config.working_path != os.curdir,
-                           config.working_path != os.getcwd(),
-                           os.path.dirname(config.output_file) == ""}
+    required_state: set[bool] = {config.relative,
+                                 config.working_path != os.curdir,
+                                 config.working_path != os.getcwd(),
+                                 os.path.dirname(config.output_file) == ""}
 
-    if all(reqstate):
+    if all(required_state):
         config.output_file = os.path.abspath(config.output_file)
 
     os.chdir(config.working_path)

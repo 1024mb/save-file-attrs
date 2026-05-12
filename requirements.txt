@@ -1,5 +1,5 @@
-pathspec~=0.12.1
-orjson~=3.11.1
-pydantic~=2.12.0a1
+pathspec~=1.1.1
+orjson~=3.11.9
+pydantic~=2.13.4
 loguru~=0.7.3
 pystatx~=0.1
